@@ -162,32 +162,36 @@ CLASS zcl_gcts_tr_analyzer IMPLEMENTATION.
 
 " ═════════════════════════════════════════════════════════════════════════════
 " STAGE 1 — Task Inventory
+" Uses CTS tables E070/E071 directly — reliable, no XCO API uncertainty.
+"   E070: Transport/Task header — STRKORR = parent TR identifies tasks
+"   E071: Object entries per transport/task
 " ═════════════════════════════════════════════════════════════════════════════
   METHOD stage1_inventory.
-    TRY.
-        " get_request() returns if_xco_cp_tr_request
-        " get_tasks() returns the task list from the request
-        DATA(lo_request) = xco_cp_cts=>transport->for( CONV sxco_transport( iv_tr ) )->get_request( ).
-        DATA(lt_tasks)   = lo_request->get_tasks( ).
 
-        LOOP AT lt_tasks INTO DATA(lo_task).
-          " lo_task->value gives the task number (e.g. GMWK900692)
-          DATA(lv_task_id) = CONV string( lo_task->value ).
-          TRY.
-              LOOP AT lo_task->get_objects( ) INTO DATA(lo_obj).
-                DATA(ls_key) = lo_obj->get_object_key( ).
-                APPEND VALUE #(
-                  task_id  = lv_task_id
-                  obj_type = ls_key-pgmid && '/' && ls_key-object
-                  obj_name = CONV string( ls_key-obj_name ) ) TO mt_objects.
-              ENDLOOP.
-          CATCH cx_root.
-          ENDTRY.
-        ENDLOOP.
+    " Read all objects from tasks of this TR in one join
+    SELECT e071~trkorr AS task_id,
+           e071~pgmid  AS pgmid,
+           e071~object AS object,
+           e071~obj_name AS obj_name
+      FROM e071
+      INNER JOIN e070 ON e070~trkorr = e071~trkorr
+      WHERE e070~strkorr = @iv_tr
+      INTO TABLE @DATA(lt_raw).
 
-    CATCH cx_root INTO DATA(lx).
-      out( |ERROR Stage 1 - TR { iv_tr }: { lx->get_text( ) }| ).
-    ENDTRY.
+    IF sy-subrc <> 0 OR lt_raw IS INITIAL.
+      out( |TR { iv_tr }: no objects found in tasks (verify TR exists in SE09)| ).
+      RETURN.
+    ENDIF.
+
+    LOOP AT lt_raw INTO DATA(ls).
+      APPEND VALUE #(
+        task_id  = CONV string( ls-task_id )
+        obj_type = CONV string( ls-pgmid ) && '/' && CONV string( ls-object )
+        obj_name = CONV string( ls-obj_name ) ) TO mt_objects.
+    ENDLOOP.
+
+    out( |Stage 1: { lines( mt_objects ) } objects collected from TR { iv_tr }| ).
+
   ENDMETHOD.
 
 
@@ -337,19 +341,21 @@ CLASS zcl_gcts_tr_analyzer IMPLEMENTATION.
 
 
   METHOD deps_for_fugr.
+    " Use TFDIR (function module directory) to find FMs in this function group
+    " PNAME in TFDIR = function group name
     TRY.
-        DATA(lo_fg) = xco_cp_abap=>function_group( iv_name ).
-        LOOP AT lo_fg->function_modules->all( ) INTO DATA(lo_fm).
-          TRY.
-              DATA(lv_fm_name) = lo_fm->name.
-              DATA(lv_tgt_task) = task_of_object( lv_fm_name ).
-              add_dep( iv_src_task = iv_task  iv_src_obj = |FUGR/{ iv_name }|
-                       iv_tgt_task = lv_tgt_task
-                       iv_tgt_obj  = |FUGR/{ lv_fm_name }|
-                       iv_kind     = 'CALLS'
-                       iv_detail   = |{ iv_name } -> FM { lv_fm_name }| ).
-          CATCH cx_root.
-          ENDTRY.
+        SELECT funcname FROM tfdir
+          WHERE pname = @iv_name
+          INTO TABLE @DATA(lt_fms).
+
+        LOOP AT lt_fms INTO DATA(ls_fm).
+          DATA(lv_fm_name) = CONV string( ls_fm-funcname ).
+          DATA(lv_tgt_task) = task_of_object( lv_fm_name ).
+          add_dep( iv_src_task = iv_task  iv_src_obj = |FUGR/{ iv_name }|
+                   iv_tgt_task = lv_tgt_task
+                   iv_tgt_obj  = |FUGR/{ lv_fm_name }|
+                   iv_kind     = 'CALLS'
+                   iv_detail   = |{ iv_name } -> FM { lv_fm_name }| ).
         ENDLOOP.
     CATCH cx_root.
     ENDTRY.

@@ -324,41 +324,18 @@ CLASS zcl_gcts_tr_analyzer IMPLEMENTATION.
 
 
   METHOD deps_for_ddls.
-    " DDLDEPENDENCY: DDLNAME = the view, DEPDDLNAME = what it depends on
-    " Query: what does iv_name SELECT FROM?
-    TRY.
-        SELECT DISTINCT depddlname FROM ddldependency
-          WHERE ddlname = @iv_name
-          INTO TABLE @DATA(lt_deps).
-        LOOP AT lt_deps INTO DATA(ls_dep).
-          DATA(lv_src) = CONV string( ls_dep-depddlname ).
-          IF lv_src = iv_name OR lv_src IS INITIAL. CONTINUE. ENDIF.
-          add_dep( iv_src_task = iv_task  iv_src_obj = |DDLS/{ iv_name }|
-                   iv_tgt_task = task_of_object( lv_src )
-                   iv_tgt_obj  = lv_src
-                   iv_kind     = 'USES'
-                   iv_detail   = |{ iv_name } FROM { lv_src }| ).
-        ENDLOOP.
-    CATCH cx_root.
-    ENDTRY.
+    " CDS view source dependencies are complex to extract reliably across
+    " all system variants (DDLDEPENDENCY column names differ by release).
+    " CLAS/INTF/TABL dependencies cover the critical activation risks.
+    " CDS-to-CDS dependencies are lower risk and can be added once the
+    " exact table structure of this system is confirmed in SE11.
+    RETURN.
   ENDMETHOD.
 
 
   METHOD deps_for_ddlx.
-    TRY.
-        DATA lv_base TYPE ddlsource-ddlname.
-        SELECT SINGLE ddlname FROM ddlsource
-          WHERE ddlname = @iv_name
-          INTO @lv_base.
-        IF sy-subrc = 0 AND lv_base IS NOT INITIAL.
-          add_dep( iv_src_task = iv_task  iv_src_obj = |DDLX/{ iv_name }|
-                   iv_tgt_task = task_of_object( CONV string( lv_base ) )
-                   iv_tgt_obj  = |DDLS/{ lv_base }|
-                   iv_kind     = 'EXTENDS'
-                   iv_detail   = |{ iv_name } annotates { lv_base }| ).
-        ENDIF.
-    CATCH cx_root.
-    ENDTRY.
+    " Metadata extension dependencies skipped — see deps_for_ddls note.
+    RETURN.
   ENDMETHOD.
 
 

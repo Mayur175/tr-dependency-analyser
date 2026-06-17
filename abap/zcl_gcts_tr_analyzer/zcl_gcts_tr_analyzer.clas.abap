@@ -219,16 +219,14 @@ CLASS zcl_gcts_tr_analyzer IMPLEMENTATION.
 
 
   METHOD deps_for_clas.
-    " SEOMETAREL: RELTYPE domain-typed — must use typed variables in WHERE
-    " RELTYPE 'EX' = class inherits superclass
-    " RELTYPE 'EI' = class/interface implements/extends interface
-    DATA: lv_clsname  TYPE seoclsname,
-          lv_reltype  TYPE seometareltype,
-          lv_super    TYPE seoclsname.
+    " Use TYPE table-field to avoid guessing domain type names
+    DATA: lv_clsname TYPE seometarel-clsname,
+          lv_reltype TYPE seometarel-reltype,
+          lv_super   TYPE seometarel-refclsname.
 
     lv_clsname = to_upper( iv_name ).
 
-    " Superclass (INHERITS)
+    " Superclass: RELTYPE 'EX' = extends/inherits
     lv_reltype = 'EX'.
     SELECT SINGLE refclsname FROM seometarel
       WHERE clsname = @lv_clsname AND reltype = @lv_reltype
@@ -241,13 +239,14 @@ CLASS zcl_gcts_tr_analyzer IMPLEMENTATION.
                iv_detail   = |{ iv_name } extends { lv_super }| ).
     ENDIF.
 
-    " Implemented interfaces (IMPLEMENTS)
+    " Implemented interfaces: RELTYPE 'EI' = implements interface
     lv_reltype = 'EI'.
+    DATA lt_intfs TYPE STANDARD TABLE OF seometarel-refclsname WITH EMPTY KEY.
     SELECT refclsname FROM seometarel
       WHERE clsname = @lv_clsname AND reltype = @lv_reltype
-      INTO TABLE @DATA(lt_intfs).
-    LOOP AT lt_intfs INTO DATA(ls_intf).
-      DATA(lv_intf) = CONV string( ls_intf-refclsname ).
+      INTO TABLE @lt_intfs.
+    LOOP AT lt_intfs INTO DATA(lv_intf_raw).
+      DATA(lv_intf) = CONV string( lv_intf_raw ).
       add_dep( iv_src_task = iv_task  iv_src_obj = |CLAS/{ iv_name }|
                iv_tgt_task = task_of_object( lv_intf )
                iv_tgt_obj  = |INTF/{ lv_intf }|
@@ -258,17 +257,18 @@ CLASS zcl_gcts_tr_analyzer IMPLEMENTATION.
 
 
   METHOD deps_for_intf.
-    DATA: lv_clsname TYPE seoclsname,
-          lv_reltype TYPE seometareltype.
+    DATA: lv_clsname TYPE seometarel-clsname,
+          lv_reltype TYPE seometarel-reltype.
+    DATA lt_parents TYPE STANDARD TABLE OF seometarel-refclsname WITH EMPTY KEY.
 
     lv_clsname = to_upper( iv_name ).
     lv_reltype = 'EI'.
 
     SELECT refclsname FROM seometarel
       WHERE clsname = @lv_clsname AND reltype = @lv_reltype
-      INTO TABLE @DATA(lt_parents).
-    LOOP AT lt_parents INTO DATA(ls_par).
-      DATA(lv_par) = CONV string( ls_par-refclsname ).
+      INTO TABLE @lt_parents.
+    LOOP AT lt_parents INTO DATA(lv_par_raw).
+      DATA(lv_par) = CONV string( lv_par_raw ).
       add_dep( iv_src_task = iv_task  iv_src_obj = |INTF/{ iv_name }|
                iv_tgt_task = task_of_object( lv_par )
                iv_tgt_obj  = |INTF/{ lv_par }|
@@ -279,9 +279,9 @@ CLASS zcl_gcts_tr_analyzer IMPLEMENTATION.
 
 
   METHOD deps_for_tabl.
-    " AS4LOCAL is a typed domain — use a typed variable in WHERE
     DATA: lv_tabname TYPE dd03l-tabname,
-          lv_local   TYPE as4local.
+          lv_local   TYPE dd03l-as4local.
+    DATA lt_dtel TYPE STANDARD TABLE OF dd03l-rollname WITH EMPTY KEY.
 
     lv_tabname = to_upper( iv_name ).
     lv_local   = 'A'.
@@ -290,9 +290,9 @@ CLASS zcl_gcts_tr_analyzer IMPLEMENTATION.
       WHERE tabname  = @lv_tabname
         AND rollname <> ''
         AND as4local = @lv_local
-      INTO TABLE @DATA(lt_dtel).
-    LOOP AT lt_dtel INTO DATA(ls_de).
-      DATA(lv_de) = CONV string( ls_de-rollname ).
+      INTO TABLE @lt_dtel.
+    LOOP AT lt_dtel INTO DATA(lv_de_raw).
+      DATA(lv_de) = CONV string( lv_de_raw ).
       add_dep( iv_src_task = iv_task  iv_src_obj = |TABL/{ iv_name }|
                iv_tgt_task = task_of_object( lv_de )
                iv_tgt_obj  = |DTEL/{ lv_de }|
@@ -304,7 +304,7 @@ CLASS zcl_gcts_tr_analyzer IMPLEMENTATION.
 
   METHOD deps_for_dtel.
     DATA: lv_rollname TYPE dd04l-rollname,
-          lv_local    TYPE as4local,
+          lv_local    TYPE dd04l-as4local,
           lv_dom      TYPE dd04l-domname.
 
     lv_rollname = to_upper( iv_name ).

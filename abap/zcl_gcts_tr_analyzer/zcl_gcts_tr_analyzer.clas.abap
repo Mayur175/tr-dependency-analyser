@@ -165,13 +165,16 @@ CLASS zcl_gcts_tr_analyzer IMPLEMENTATION.
 " ═════════════════════════════════════════════════════════════════════════════
   METHOD stage1_inventory.
     TRY.
-        DATA(lo_tr)    = xco_cp_cts=>transports->for_transport_request( iv_tr ).
+        " xco_cp_cts=>transport_requests is the correct attribute name
+        DATA(lo_tr)    = xco_cp_cts=>transport_requests->for_transport_request( iv_tr ).
         DATA(lt_tasks) = lo_tr->tasks->all( ).
 
         LOOP AT lt_tasks INTO DATA(lo_task).
+          " lo_task->value gives the task number (e.g. GMWK900692)
           DATA(lv_task_id) = lo_task->value.
           TRY.
               LOOP AT lo_task->objects->all( ) INTO DATA(lo_obj).
+                " object_key provides pgmid, object type, obj_name
                 DATA(ls_key) = lo_obj->object_key.
                 APPEND VALUE #(
                   task_id  = lv_task_id
@@ -183,7 +186,7 @@ CLASS zcl_gcts_tr_analyzer IMPLEMENTATION.
         ENDLOOP.
 
     CATCH cx_root INTO DATA(lx).
-      out( |ERROR Stage 1 — TR { iv_tr }: { lx->get_text( ) }| ).
+      out( |ERROR Stage 1 - TR { iv_tr }: { lx->get_text( ) }| ).
     ENDTRY.
   ENDMETHOD.
 

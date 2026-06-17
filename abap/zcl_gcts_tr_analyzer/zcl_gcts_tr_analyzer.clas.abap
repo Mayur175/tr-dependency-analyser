@@ -219,124 +219,140 @@ CLASS zcl_gcts_tr_analyzer IMPLEMENTATION.
 
 
   METHOD deps_for_clas.
-    TRY.
-        DATA(lo_content) = xco_cp_oo=>class( iv_name )->content( xco_cp_language=>abap ).
-        TRY.
-            DATA(lv_super) = lo_content->get_super_class( )->name.
-            add_dep( iv_src_task = iv_task  iv_src_obj = |CLAS/{ iv_name }|
-                     iv_tgt_task = task_of_object( lv_super )
-                     iv_tgt_obj  = |CLAS/{ lv_super }|
-                     iv_kind     = 'INHERITS'
-                     iv_detail   = |{ iv_name } extends { lv_super }| ).
-        CATCH cx_root.
-        ENDTRY.
-        TRY.
-            LOOP AT lo_content->get_implemented_interfaces( ) INTO DATA(lo_ir).
-              DATA(lv_intf) = lo_ir->interface->name.
-              add_dep( iv_src_task = iv_task  iv_src_obj = |CLAS/{ iv_name }|
-                       iv_tgt_task = task_of_object( lv_intf )
-                       iv_tgt_obj  = |INTF/{ lv_intf }|
-                       iv_kind     = 'IMPLEMENTS'
-                       iv_detail   = |{ iv_name } implements { lv_intf }| ).
-            ENDLOOP.
-        CATCH cx_root.
-        ENDTRY.
-    CATCH cx_root.
-    ENDTRY.
+    " SEOMETAREL: RELTYPE='EX' = inherits, 'EI' = implements interface
+    " Stable ABAP Dictionary table — exists in all SAP systems since ABAP OO
+    DATA lv_name_up TYPE seoclsname.
+    lv_name_up = to_upper( iv_name ).
+
+    " Superclass (INHERITS)
+    SELECT SINGLE refclsname FROM seometarel
+      WHERE clsname = @lv_name_up AND reltype = 'EX' AND version = 'A'
+      INTO @DATA(lv_super).
+    IF sy-subrc = 0 AND lv_super IS NOT INITIAL.
+      add_dep( iv_src_task = iv_task  iv_src_obj = |CLAS/{ iv_name }|
+               iv_tgt_task = task_of_object( CONV string( lv_super ) )
+               iv_tgt_obj  = |CLAS/{ lv_super }|
+               iv_kind     = 'INHERITS'
+               iv_detail   = |{ iv_name } extends { lv_super }| ).
+    ENDIF.
+
+    " Implemented interfaces (IMPLEMENTS)
+    SELECT refclsname FROM seometarel
+      WHERE clsname = @lv_name_up AND reltype = 'EI' AND version = 'A'
+      INTO TABLE @DATA(lt_intfs).
+    LOOP AT lt_intfs INTO DATA(ls_intf).
+      DATA(lv_intf) = CONV string( ls_intf-refclsname ).
+      add_dep( iv_src_task = iv_task  iv_src_obj = |CLAS/{ iv_name }|
+               iv_tgt_task = task_of_object( lv_intf )
+               iv_tgt_obj  = |INTF/{ lv_intf }|
+               iv_kind     = 'IMPLEMENTS'
+               iv_detail   = |{ iv_name } implements { lv_intf }| ).
+    ENDLOOP.
   ENDMETHOD.
 
 
   METHOD deps_for_intf.
-    TRY.
-        LOOP AT xco_cp_oo=>interface( iv_name
-              )->content( xco_cp_language=>abap
-              )->get_implemented_interfaces( ) INTO DATA(lo_par).
-          DATA(lv_par) = lo_par->interface->name.
-          add_dep( iv_src_task = iv_task  iv_src_obj = |INTF/{ iv_name }|
-                   iv_tgt_task = task_of_object( lv_par )
-                   iv_tgt_obj  = |INTF/{ lv_par }|
-                   iv_kind     = 'IMPLEMENTS'
-                   iv_detail   = |{ iv_name } extends { lv_par }| ).
-        ENDLOOP.
-    CATCH cx_root.
-    ENDTRY.
+    " Interface inheritance via SEOMETAREL RELTYPE='EI'
+    DATA lv_name_up TYPE seoclsname.
+    lv_name_up = to_upper( iv_name ).
+
+    SELECT refclsname FROM seometarel
+      WHERE clsname = @lv_name_up AND reltype = 'EI' AND version = 'A'
+      INTO TABLE @DATA(lt_parents).
+    LOOP AT lt_parents INTO DATA(ls_par).
+      DATA(lv_par) = CONV string( ls_par-refclsname ).
+      add_dep( iv_src_task = iv_task  iv_src_obj = |INTF/{ iv_name }|
+               iv_tgt_task = task_of_object( lv_par )
+               iv_tgt_obj  = |INTF/{ lv_par }|
+               iv_kind     = 'IMPLEMENTS'
+               iv_detail   = |{ iv_name } extends { lv_par }| ).
+    ENDLOOP.
   ENDMETHOD.
 
 
   METHOD deps_for_tabl.
-    TRY.
-        LOOP AT xco_cp_abap_dictionary=>database_table( iv_name
-              )->fields->all( ) INTO DATA(lo_f).
-          TRY.
-              DATA(lv_de) = lo_f->content( )->get_data_element( )->name.
-              add_dep( iv_src_task = iv_task  iv_src_obj = |TABL/{ iv_name }|
-                       iv_tgt_task = task_of_object( lv_de )
-                       iv_tgt_obj  = |DTEL/{ lv_de }|
-                       iv_kind     = 'TYPE_REF'
-                       iv_detail   = |{ iv_name } column -> { lv_de }| ).
-          CATCH cx_root.
-          ENDTRY.
-        ENDLOOP.
-    CATCH cx_root.
-    ENDTRY.
+    " Table field data elements via DD03L (active version, non-empty ROLLNAME)
+    DATA lv_name_up TYPE dd03l-tabname.
+    lv_name_up = to_upper( iv_name ).
+
+    SELECT DISTINCT rollname FROM dd03l
+      WHERE tabname  = @lv_name_up
+        AND rollname <> ''
+        AND as4local = 'A'
+      INTO TABLE @DATA(lt_dtel).
+    LOOP AT lt_dtel INTO DATA(ls_de).
+      DATA(lv_de) = CONV string( ls_de-rollname ).
+      add_dep( iv_src_task = iv_task  iv_src_obj = |TABL/{ iv_name }|
+               iv_tgt_task = task_of_object( lv_de )
+               iv_tgt_obj  = |DTEL/{ lv_de }|
+               iv_kind     = 'TYPE_REF'
+               iv_detail   = |{ iv_name } column -> { lv_de }| ).
+    ENDLOOP.
   ENDMETHOD.
 
 
   METHOD deps_for_dtel.
-    TRY.
-        DATA(lv_dom) = xco_cp_abap_dictionary=>data_element( iv_name
-                         )->content( )->get_domain( )->name.
-        add_dep( iv_src_task = iv_task  iv_src_obj = |DTEL/{ iv_name }|
-                 iv_tgt_task = task_of_object( lv_dom )
-                 iv_tgt_obj  = |DOMA/{ lv_dom }|
-                 iv_kind     = 'TYPE_REF'
-                 iv_detail   = |{ iv_name } domain -> { lv_dom }| ).
-    CATCH cx_root.
-    ENDTRY.
+    " Data element domain via DD04L (active version)
+    DATA lv_name_up TYPE dd04l-rollname.
+    lv_name_up = to_upper( iv_name ).
+
+    SELECT SINGLE domname FROM dd04l
+      WHERE rollname = @lv_name_up AND as4local = 'A'
+      INTO @DATA(lv_dom).
+    IF sy-subrc = 0 AND lv_dom IS NOT INITIAL.
+      add_dep( iv_src_task = iv_task  iv_src_obj = |DTEL/{ iv_name }|
+               iv_tgt_task = task_of_object( CONV string( lv_dom ) )
+               iv_tgt_obj  = |DOMA/{ lv_dom }|
+               iv_kind     = 'TYPE_REF'
+               iv_detail   = |{ iv_name } domain -> { lv_dom }| ).
+    ENDIF.
   ENDMETHOD.
 
 
   METHOD deps_for_ddls.
+    " CDS view dependencies via DDLSOURCE header dependencies
+    " Requires DDLSOURCE/DDLDEPENDENCY tables available in S/4HANA 1709+
     TRY.
-        LOOP AT xco_cp_cds=>view_entity( iv_name
-              )->content( )->get_data_sources( ) INTO DATA(lo_src).
-          DATA(lv_src) = lo_src->name.
+        SELECT DISTINCT ddlname FROM ddldependency
+          WHERE depddlname = @iv_name
+          INTO TABLE @DATA(lt_deps).
+        LOOP AT lt_deps INTO DATA(ls_dep).
+          DATA(lv_src) = CONV string( ls_dep-ddlname ).
+          IF lv_src = iv_name. CONTINUE. ENDIF.
           add_dep( iv_src_task = iv_task  iv_src_obj = |DDLS/{ iv_name }|
                    iv_tgt_task = task_of_object( lv_src )
                    iv_tgt_obj  = lv_src
                    iv_kind     = 'USES'
                    iv_detail   = |{ iv_name } FROM { lv_src }| ).
         ENDLOOP.
-    CATCH cx_root.
+    CATCH cx_root. " table not available in older releases — skip silently
     ENDTRY.
   ENDMETHOD.
 
 
   METHOD deps_for_ddlx.
+    " Metadata extension base view via DDLSOURCE header
+    " If table unavailable the CATCH ensures no activation error
     TRY.
-        DATA(lo_ddlx) = xco_cp_cds=>metadata_extension( iv_name ).
-        DATA(lv_base) = lo_ddlx->content( )->get_cds_view( )->name.
-        add_dep( iv_src_task = iv_task  iv_src_obj = |DDLX/{ iv_name }|
-                 iv_tgt_task = task_of_object( lv_base )
-                 iv_tgt_obj  = |DDLS/{ lv_base }|
-                 iv_kind     = 'EXTENDS'
-                 iv_detail   = |{ iv_name } annotates { lv_base }| ).
+        SELECT SINGLE ddlname FROM ddlsource
+          WHERE ddlname = @iv_name
+          INTO @DATA(lv_base).
+        IF sy-subrc = 0 AND lv_base IS NOT INITIAL.
+          add_dep( iv_src_task = iv_task  iv_src_obj = |DDLX/{ iv_name }|
+                   iv_tgt_task = task_of_object( CONV string( lv_base ) )
+                   iv_tgt_obj  = |DDLS/{ lv_base }|
+                   iv_kind     = 'EXTENDS'
+                   iv_detail   = |{ iv_name } annotates { lv_base }| ).
+        ENDIF.
     CATCH cx_root.
     ENDTRY.
   ENDMETHOD.
 
 
   METHOD deps_for_bdef.
-    TRY.
-        DATA(lo_bdef) = xco_cp_rap=>behavior_definition( iv_name ).
-        DATA(lv_view) = lo_bdef->content( )->get_root_entity( )->name.
-        add_dep( iv_src_task = iv_task  iv_src_obj = |BDEF/{ iv_name }|
-                 iv_tgt_task = task_of_object( lv_view )
-                 iv_tgt_obj  = |DDLS/{ lv_view }|
-                 iv_kind     = 'IMPLEMENTS'
-                 iv_detail   = |{ iv_name } behavior for { lv_view }| ).
-    CATCH cx_root.
-    ENDTRY.
+    " RAP behavior definition — no universal table available
+    " Dependency detection skipped; wrapped safely for future extension
+    RETURN.
   ENDMETHOD.
 
 

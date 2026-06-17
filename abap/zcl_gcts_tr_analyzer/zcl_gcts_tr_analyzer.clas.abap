@@ -165,8 +165,8 @@ CLASS zcl_gcts_tr_analyzer IMPLEMENTATION.
 " ═════════════════════════════════════════════════════════════════════════════
   METHOD stage1_inventory.
     TRY.
-        " xco_cp_cts=>transport (singular) with ->for( ) is the correct API
-        DATA(lo_tr)    = xco_cp_cts=>transport->for( iv_tr ).
+        " SXCO_TRANSPORT is CHAR20 — must convert from string
+        DATA(lo_tr)    = xco_cp_cts=>transport->for( CONV sxco_transport( iv_tr ) ).
         DATA(lt_tasks) = lo_tr->tasks->all( ).
 
         LOOP AT lt_tasks INTO DATA(lo_task).

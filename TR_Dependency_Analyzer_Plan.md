@@ -1063,10 +1063,10 @@ Regex: `[A-Z0-9]{3,4}K[0-9]{6}`
 
 | Resource | URL / Path |
 |----------|-----------|
-| Source code (main branch) | `https://github.tools.sap/I763161/gcts-analyzer` |
+| Source code (main branch) | `https://github.com/Mayur175/tr-analyser` |
 | Plugin JAR (direct download) | `dist/com.gmw.gcts.analyzer_1.0.0.jar` in repo |
 | P2 ZIP (offline install) | `dist/gcts-analyzer-updatesite-1.0.0.zip` in repo |
-| gh-pages branch (P2 files) | `https://github.tools.sap/I763161/gcts-analyzer/tree/gh-pages` |
+| gh-pages branch (P2 files) | `https://github.com/Mayur175/tr-analyser/tree/gh-pages` |
 
 > **Important — Pages Authentication Constraint:**
 > SAP enterprise GitHub (`github.tools.sap`) requires authentication for all
@@ -1179,10 +1179,10 @@ cat > /tmp/gcts-ghpages/index.html <<'EOF'
   <ol>
     <li>Help → Install New Software → Add</li>
     <li>Name: <code>gCTS Analyzer</code></li>
-    <li>URL: <code>https://pages.github.tools.sap/I763161/gcts-analyzer/updatesite</code></li>
+    <li>URL: <code>https://mayur175.github.io/tr-analyser/updatesite</code></li>
     <li>Select <em>gCTS Tools for ADT</em> → Install → Restart</li>
   </ol>
-  <p><a href="https://github.tools.sap/I763161/gcts-analyzer">Source code and documentation →</a></p>
+  <p><a href="https://github.com/Mayur175/tr-analyser">Source code and documentation →</a></p>
 </body>
 </html>
 EOF
@@ -1192,7 +1192,7 @@ cd /tmp/gcts-ghpages
 git init
 git config user.email "I763161@sap.com"
 git config user.name "I763161"
-git remote add origin https://github.tools.sap/I763161/gcts-analyzer.git
+git remote add origin https://github.com/Mayur175/tr-analyser.git
 git checkout --orphan gh-pages
 git add .
 git commit -m "Release vX.Y.Z — publish P2 update site"

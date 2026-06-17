@@ -37,7 +37,7 @@
     <license>Apache License 2.0</license>
     <licenseURL>https://www.apache.org/licenses/LICENSE-2.0</licenseURL>
 
-    <updateURL>https://pages.github.tools.sap/I763161/gcts-analyzer/updatesite</updateURL>
+    <updateURL>https://mayur175.github.io/tr-analyser/updatesite</updateURL>
 
     <summary>
       Detects cross-task object dependencies in SAP gCTS Transport Requests

@@ -6,7 +6,7 @@ Eclipse ADT plugin that detects cross-task object dependencies in SAP gCTS Trans
 
 ```
 Help → Install New Software → Add
-URL: https://pages.github.tools.sap/I763161/gcts-analyzer/updatesite
+URL: https://mayur175.github.io/tr-analyser/updatesite
 ```
 
 ## Features

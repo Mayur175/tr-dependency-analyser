@@ -789,14 +789,44 @@ CLASS zcl_gcts_tr_analyzer IMPLEMENTATION.
 " Note: create table ZGCTS_DEP_HISTORY first (see abap/zgcts_dep_history/)
 " ═════════════════════════════════════════════════════════════════════════════
   METHOD persist_result.
-    " PREREQUISITE: Create table ZGCTS_DEP_HISTORY in ADT first.
-    " Source: abap/zgcts_dep_history/zgcts_dep_history.tabl.ddls
-    " Steps:  New -> Other ABAP Repository Object -> Dictionary -> Database Table
-    "         Name: ZGCTS_DEP_HISTORY -> paste DDL -> Activate (Ctrl+F3)
-    " Once the table exists, replace this method body with the implementation
-    " from the project file: abap/zcl_gcts_tr_analyzer/zcl_gcts_tr_analyzer.clas.abap
-    out( 'INFO: persist_result skipped - table ZGCTS_DEP_HISTORY not yet created.' ).
-    out( 'INFO: Create the table in ADT first (see abap/zgcts_dep_history/).' ).
+    " Requires table ZGCTS_DEP_HISTORY to be created first.
+    " Use TYPE table-field for timestamp to match the table's packed field type.
+    DATA lv_ts   TYPE zgcts_dep_history-run_ts.
+    DATA lv_date TYPE d.
+    DATA lv_time TYPE t.
+    lv_date = cl_abap_context_info=>get_system_date( ).
+    lv_time = cl_abap_context_info=>get_system_time( ).
+    lv_ts = lv_date * 1000000 + lv_time.
+
+    DATA lt_rows TYPE STANDARD TABLE OF zgcts_dep_history WITH EMPTY KEY.
+
+    LOOP AT mt_deps INTO DATA(ls_dep).
+      DATA(lv_risk)   = risk_of_task(        ls_dep-source_task ).
+      DATA(lv_step)   = pull_step_of_task(   ls_dep-source_task ).
+      DATA(lv_action) = pull_action_of_task( ls_dep-source_task ).
+
+      APPEND VALUE #(
+        tr_id       = mv_tr
+        run_ts      = lv_ts
+        src_task    = ls_dep-source_task
+        src_obj     = ls_dep-source_object(60)
+        tgt_task    = ls_dep-target_task
+        tgt_obj     = ls_dep-target_object(60)
+        kind        = ls_dep-kind(20)
+        risk        = lv_risk(10)
+        detail      = ls_dep-detail(200)
+        pull_step   = lv_step
+        pull_action = lv_action(30) ) TO lt_rows.
+    ENDLOOP.
+
+    IF lt_rows IS NOT INITIAL.
+      INSERT zgcts_dep_history FROM TABLE lt_rows.
+      IF sy-subrc <> 0.
+        out( |WARN: persist_result - INSERT returned sy-subrc { sy-subrc }| ).
+      ELSE.
+        out( |INFO: { lines( lt_rows ) } rows saved to ZGCTS_DEP_HISTORY (run { lv_ts })| ).
+      ENDIF.
+    ENDIF.
   ENDMETHOD.
 
 ENDCLASS.

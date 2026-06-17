@@ -1,28 +1,3 @@
-"! Database table for gCTS dependency analysis history.
-"!
-"! Create in ADT:  New → Other ABAP Repository Object → Dictionary → Database Table
-"! Table name:     ZGCTS_DEP_HISTORY
-"!
-"! One row = one dependency edge recorded during a TR analysis run.
-"! A run is identified by (MANDT, TR_ID, RUN_TS).
-"!
-"! Fields:
-"!   MANDT      - Client
-"!   TR_ID      - Transport Request number  e.g. GMWK900691
-"!   RUN_TS     - UTC timestamp of the analysis run (YYYYMMDDHHMMSS)
-"!   SRC_TASK   - Source task ID
-"!   SRC_OBJ    - Source object  e.g. CLAS/ZCL_FOO
-"!   TGT_TASK   - Target task ID
-"!   TGT_OBJ    - Target object  e.g. INTF/ZIF_FOO
-"!   KIND       - Dependency kind: IMPLEMENTS / INHERITS / TYPE_REF / USES / CONFLICT ...
-"!   RISK       - Risk level of the cluster this edge belongs to
-"!   DETAIL     - Free-text description of the dependency
-"!   PULL_STEP  - Recommended pull step number from the topological sort
-"!   PULL_ACTION- TOGETHER / ALONE / COORDINATE
-"!
-"! After creating the table in ADT, activate it (Ctrl+F3).
-"! No transport required for the table definition itself in BTP ABAP
-"! (it is a customer object in namespace Z).
 @EndUserText.label : 'gCTS Dependency Analysis History'
 @AbapCatalog.enhancement.category : #NOT_EXTENSIBLE
 @AbapCatalog.tableCategory : #TRANSPARENT
@@ -32,7 +7,7 @@ define table zgcts_dep_history {
 
   key mandt      : abap.clnt not null;
   key tr_id      : abap.char(20) not null;
-  key run_ts     : abap.dec(14) not null;
+  key run_ts     : abap.dec(14,0) not null;
   key src_task   : abap.char(20) not null;
   key src_obj    : abap.char(60) not null;
   key tgt_task   : abap.char(20) not null;

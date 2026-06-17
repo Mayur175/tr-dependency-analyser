@@ -219,15 +219,20 @@ CLASS zcl_gcts_tr_analyzer IMPLEMENTATION.
 
 
   METHOD deps_for_clas.
-    " SEOMETAREL: RELTYPE='EX' = inherits, 'EI' = implements interface
-    " Stable ABAP Dictionary table — exists in all SAP systems since ABAP OO
-    DATA lv_name_up TYPE seoclsname.
-    lv_name_up = to_upper( iv_name ).
+    " SEOMETAREL: RELTYPE domain-typed — must use typed variables in WHERE
+    " RELTYPE 'EX' = class inherits superclass
+    " RELTYPE 'EI' = class/interface implements/extends interface
+    DATA: lv_clsname  TYPE seoclsname,
+          lv_reltype  TYPE seometareltype,
+          lv_super    TYPE seoclsname.
+
+    lv_clsname = to_upper( iv_name ).
 
     " Superclass (INHERITS)
+    lv_reltype = 'EX'.
     SELECT SINGLE refclsname FROM seometarel
-      WHERE clsname = @lv_name_up AND reltype = 'EX' AND version = 'A'
-      INTO @DATA(lv_super).
+      WHERE clsname = @lv_clsname AND reltype = @lv_reltype
+      INTO @lv_super.
     IF sy-subrc = 0 AND lv_super IS NOT INITIAL.
       add_dep( iv_src_task = iv_task  iv_src_obj = |CLAS/{ iv_name }|
                iv_tgt_task = task_of_object( CONV string( lv_super ) )
@@ -237,8 +242,9 @@ CLASS zcl_gcts_tr_analyzer IMPLEMENTATION.
     ENDIF.
 
     " Implemented interfaces (IMPLEMENTS)
+    lv_reltype = 'EI'.
     SELECT refclsname FROM seometarel
-      WHERE clsname = @lv_name_up AND reltype = 'EI' AND version = 'A'
+      WHERE clsname = @lv_clsname AND reltype = @lv_reltype
       INTO TABLE @DATA(lt_intfs).
     LOOP AT lt_intfs INTO DATA(ls_intf).
       DATA(lv_intf) = CONV string( ls_intf-refclsname ).
@@ -252,12 +258,14 @@ CLASS zcl_gcts_tr_analyzer IMPLEMENTATION.
 
 
   METHOD deps_for_intf.
-    " Interface inheritance via SEOMETAREL RELTYPE='EI'
-    DATA lv_name_up TYPE seoclsname.
-    lv_name_up = to_upper( iv_name ).
+    DATA: lv_clsname TYPE seoclsname,
+          lv_reltype TYPE seometareltype.
+
+    lv_clsname = to_upper( iv_name ).
+    lv_reltype = 'EI'.
 
     SELECT refclsname FROM seometarel
-      WHERE clsname = @lv_name_up AND reltype = 'EI' AND version = 'A'
+      WHERE clsname = @lv_clsname AND reltype = @lv_reltype
       INTO TABLE @DATA(lt_parents).
     LOOP AT lt_parents INTO DATA(ls_par).
       DATA(lv_par) = CONV string( ls_par-refclsname ).
@@ -271,14 +279,17 @@ CLASS zcl_gcts_tr_analyzer IMPLEMENTATION.
 
 
   METHOD deps_for_tabl.
-    " Table field data elements via DD03L (active version, non-empty ROLLNAME)
-    DATA lv_name_up TYPE dd03l-tabname.
-    lv_name_up = to_upper( iv_name ).
+    " AS4LOCAL is a typed domain — use a typed variable in WHERE
+    DATA: lv_tabname TYPE dd03l-tabname,
+          lv_local   TYPE as4local.
+
+    lv_tabname = to_upper( iv_name ).
+    lv_local   = 'A'.
 
     SELECT DISTINCT rollname FROM dd03l
-      WHERE tabname  = @lv_name_up
+      WHERE tabname  = @lv_tabname
         AND rollname <> ''
-        AND as4local = 'A'
+        AND as4local = @lv_local
       INTO TABLE @DATA(lt_dtel).
     LOOP AT lt_dtel INTO DATA(ls_de).
       DATA(lv_de) = CONV string( ls_de-rollname ).
@@ -292,13 +303,16 @@ CLASS zcl_gcts_tr_analyzer IMPLEMENTATION.
 
 
   METHOD deps_for_dtel.
-    " Data element domain via DD04L (active version)
-    DATA lv_name_up TYPE dd04l-rollname.
-    lv_name_up = to_upper( iv_name ).
+    DATA: lv_rollname TYPE dd04l-rollname,
+          lv_local    TYPE as4local,
+          lv_dom      TYPE dd04l-domname.
+
+    lv_rollname = to_upper( iv_name ).
+    lv_local    = 'A'.
 
     SELECT SINGLE domname FROM dd04l
-      WHERE rollname = @lv_name_up AND as4local = 'A'
-      INTO @DATA(lv_dom).
+      WHERE rollname = @lv_rollname AND as4local = @lv_local
+      INTO @lv_dom.
     IF sy-subrc = 0 AND lv_dom IS NOT INITIAL.
       add_dep( iv_src_task = iv_task  iv_src_obj = |DTEL/{ iv_name }|
                iv_tgt_task = task_of_object( CONV string( lv_dom ) )
@@ -310,33 +324,32 @@ CLASS zcl_gcts_tr_analyzer IMPLEMENTATION.
 
 
   METHOD deps_for_ddls.
-    " CDS view dependencies via DDLSOURCE header dependencies
-    " Requires DDLSOURCE/DDLDEPENDENCY tables available in S/4HANA 1709+
+    " DDLDEPENDENCY: DDLNAME = the view, DEPDDLNAME = what it depends on
+    " Query: what does iv_name SELECT FROM?
     TRY.
-        SELECT DISTINCT ddlname FROM ddldependency
-          WHERE depddlname = @iv_name
+        SELECT DISTINCT depddlname FROM ddldependency
+          WHERE ddlname = @iv_name
           INTO TABLE @DATA(lt_deps).
         LOOP AT lt_deps INTO DATA(ls_dep).
-          DATA(lv_src) = CONV string( ls_dep-ddlname ).
-          IF lv_src = iv_name. CONTINUE. ENDIF.
+          DATA(lv_src) = CONV string( ls_dep-depddlname ).
+          IF lv_src = iv_name OR lv_src IS INITIAL. CONTINUE. ENDIF.
           add_dep( iv_src_task = iv_task  iv_src_obj = |DDLS/{ iv_name }|
                    iv_tgt_task = task_of_object( lv_src )
                    iv_tgt_obj  = lv_src
                    iv_kind     = 'USES'
                    iv_detail   = |{ iv_name } FROM { lv_src }| ).
         ENDLOOP.
-    CATCH cx_root. " table not available in older releases — skip silently
+    CATCH cx_root.
     ENDTRY.
   ENDMETHOD.
 
 
   METHOD deps_for_ddlx.
-    " Metadata extension base view via DDLSOURCE header
-    " If table unavailable the CATCH ensures no activation error
     TRY.
+        DATA lv_base TYPE ddlsource-ddlname.
         SELECT SINGLE ddlname FROM ddlsource
           WHERE ddlname = @iv_name
-          INTO @DATA(lv_base).
+          INTO @lv_base.
         IF sy-subrc = 0 AND lv_base IS NOT INITIAL.
           add_dep( iv_src_task = iv_task  iv_src_obj = |DDLX/{ iv_name }|
                    iv_tgt_task = task_of_object( CONV string( lv_base ) )
@@ -350,8 +363,6 @@ CLASS zcl_gcts_tr_analyzer IMPLEMENTATION.
 
 
   METHOD deps_for_bdef.
-    " RAP behavior definition — no universal table available
-    " Dependency detection skipped; wrapped safely for future extension
     RETURN.
   ENDMETHOD.
 

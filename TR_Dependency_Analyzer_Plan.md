@@ -2,6 +2,28 @@
 
 ---
 
+## ABAP Development Conventions
+
+> **Role:** All ABAP code in this project is authored from the perspective of a
+> **Senior SAP Technical Architect** with expertise in S/4HANA Cloud Public Edition,
+> S/4HANA Cloud Private Edition, BTP ABAP Environment, and Classic On-Premise (ECC/S4 OP).
+>
+> **Key principles applied:**
+> - Use **stable ABAP Dictionary tables** (E070, E071, SEOMETAREL, DD03L, DD04L, TFDIR)
+>   over XCO or other release-specific APIs wherever possible.
+>   These tables exist in every SAP system since R/3 and are never renamed.
+> - **Domain-typed fields** in WHERE clauses (e.g. `RELTYPE`, `AS4LOCAL`) must be
+>   compared via pre-declared typed variables — string literals cause type mismatch errors.
+>   Always: `DATA lv_x TYPE tablename-fieldname. lv_x = 'VALUE'. WHERE field = @lv_x.`
+> - All `SELECT INTO @DATA(...)` inline declarations only work for single-row results
+>   (`SELECT SINGLE`). Multi-row results require a pre-declared or `INTO TABLE @DATA(lt_x)`.
+> - Every `SELECT` result variable used outside the SELECT statement must be declared
+>   with explicit `DATA` — not inline `INTO @DATA(...)` if referenced later.
+> - Wrap all speculative table reads (DDLDEPENDENCY, DDLSOURCE) in `TRY...CATCH cx_root`
+>   to handle tables absent in older releases.
+
+---
+
 ## 1. Problem Statement
 
 In SAP Public Cloud (S/4HANA Cloud / BTP ABAP Environment) using **gCTS with task-based commits**, each developer's changes are isolated in a **Task** within a Transport Request (TR). Multiple tasks in the same TR can contain the **same object** or **objects that depend on each other** (e.g., a class in Task A implements an interface in Task B).

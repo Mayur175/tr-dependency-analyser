@@ -789,9 +789,13 @@ CLASS zcl_gcts_tr_analyzer IMPLEMENTATION.
 " Note: create table ZGCTS_DEP_HISTORY first (see abap/zgcts_dep_history/)
 " ═════════════════════════════════════════════════════════════════════════════
   METHOD persist_result.
-    DATA(lv_ts) = CONV dec14(
-        cl_abap_context_info=>get_system_date( ) &&
-        cl_abap_context_info=>get_system_time( ) ).
+    " Use p LENGTH 7 DECIMALS 0 (underlying type of DEC14) for timestamp key
+    DATA lv_ts TYPE p LENGTH 7 DECIMALS 0.
+    DATA lv_date TYPE d.
+    DATA lv_time TYPE t.
+    lv_date = cl_abap_context_info=>get_system_date( ).
+    lv_time = cl_abap_context_info=>get_system_time( ).
+    lv_ts = lv_date * 1000000 + lv_time.
 
     DATA lt_rows TYPE STANDARD TABLE OF zgcts_dep_history WITH EMPTY KEY.
 

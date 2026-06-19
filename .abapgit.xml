@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  abapGit repository descriptor at the REPO ROOT.
+
+  When you clone https://github.com/Mayur175/tr-dependency-analyser via the
+  abapGit ADT plugin, abapGit looks for this file at the root of the repo
+  to know where the ABAP source code lives.
+
+  Without this file, abapGit pulls 0 objects (it cannot find the source).
+  STARTING_FOLDER below points abapGit to /abap/src/ where the .clas.abap,
+  .tabl.xml and friends actually live (the repo root contains abap/,
+  eclipse/, verification/, etc. directly).
+
+  Reference: https://docs.abapgit.org/ref-dot-abapgit.html
+-->
+<asx:abap xmlns:asx="http://www.sap.com/abapxml" version="1.0">
+  <asx:values>
+    <DATA>
+      <MASTER_LANGUAGE>E</MASTER_LANGUAGE>
+      <STARTING_FOLDER>/abap/src/</STARTING_FOLDER>
+      <FOLDER_LOGIC>FULL</FOLDER_LOGIC>
+      <IGNORE>
+        <item>/.gitignore</item>
+        <item>/.github/</item>
+        <item>/LICENSE</item>
+        <item>/README.md</item>
+        <item>/ARCHITECT_REVIEW.md</item>
+        <item>/GAPS_IN_CURRENT_DESIGN.md</item>
+        <item>/HOW_TO_PUSH_TO_GITHUB.md</item>
+        <item>/HOW_TO_UPDATE_GITHUB_AND_ECLIPSE.md</item>
+        <item>/NEXT_STEPS.md</item>
+        <item>/RELEASE_PLAYBOOK.md</item>
+        <item>/SOLUTION_ARCHITECTURE.md</item>
+        <item>/TR_Dependency_Analyzer_Plan.md</item>
+        <item>/eclipse/</item>
+        <item>/marketplace/</item>
+        <item>/verification/</item>
+        <item>/abap/INSTALL_VIA_ABAPGIT.md</item>
+        <item>/abap/docs/</item>
+        <item>/abap/.abapgit.xml</item>
+      </IGNORE>
+    </DATA>
+  </asx:values>
+</asx:abap>

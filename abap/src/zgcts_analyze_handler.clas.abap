@@ -41,19 +41,29 @@ CLASS zgcts_analyze_handler DEFINITION
     " ----------------------------------------------------------------------
     " AUTHORITY-CHECK control flag.
     "
-    "   c_enforce_auth = abap_true   (DEFAULT, production-safe)
-    "       Caller must hold S_TRANSPRT (TTYPE=CUST, ACTVT=03 Display).
-    "       Unauthorised callers receive HTTP 403.
+    " >>>>>  WARNING - SECURITY CRITICAL  <<<<<
     "
-    "   c_enforce_auth = abap_false  (sandbox / pilot only)
-    "       AUTHORITY-CHECK is skipped. Every authenticated user can read
-    "       any TR's content. ONLY use this on a sandbox / dev tenant where
-    "       transport content is not sensitive. NEVER ship this value to
-    "       a production system. The handler will emit a one-line warning
-    "       in the response header (X-Auth-Bypass: yes) so downstream
-    "       monitoring can flag the deviation.
+    " The DEFAULT in this open-source repo is ABAP_FALSE so that pilot
+    " users on personal / dev tenants can install via abapGit and use
+    " the tool immediately without waiting for Basis to grant the
+    " S_TRANSPRT (TTYPE=CUST, ACTVT=03) authorisation.
+    "
+    " WHEN ABAP_FALSE (current default - sandbox / pilot only):
+    "   - AUTHORITY-CHECK is skipped. Every authenticated SAP user with
+    "     HTTP access can read ANY TR's contents via this endpoint.
+    "   - The handler emits 'X-Auth-Bypass: yes' on every response so
+    "     downstream monitoring can detect the open setting.
+    "   - DO NOT use on shared development, QA, or PRODUCTION systems.
+    "
+    " WHEN ABAP_TRUE (production-safe - flip this for any non-sandbox):
+    "   - Caller must hold S_TRANSPRT (TTYPE=CUST, ACTVT=03 Display).
+    "   - Unauthorised callers receive HTTP 403.
+    "   - Same authorisation pattern SE10 / SE09 already enforce.
+    "
+    " To enable the production-safe behaviour, change ABAP_FALSE below
+    " to ABAP_TRUE, activate, and ship in your customer-namespace TR.
     " ----------------------------------------------------------------------
-    CONSTANTS c_enforce_auth TYPE abap_bool VALUE abap_true.
+    CONSTANTS c_enforce_auth TYPE abap_bool VALUE abap_false.
 
     METHODS authorised
       RETURNING VALUE(rv_ok) TYPE abap_bool.

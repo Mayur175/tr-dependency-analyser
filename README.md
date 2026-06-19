@@ -44,17 +44,20 @@ the SAP `abap-cleaner` plugin.
 
 ### Method 2 — Local ZIP / archive (offline)
 
-Use this when your Eclipse cannot reach `github.io` (corporate proxy,
-air-gapped network, etc.).
+Use this when your Eclipse cannot reach `github.io` once installed
+(corporate proxy on the developer's IDE machine, etc.). The download
+itself comes from the same GitHub Pages site.
 
-1. Build the update site once (or grab the latest from the
-   [GitHub Releases page](https://github.com/Mayur175/tr-dependency-analyser/releases)):
+1. Download the update-site ZIP:
+   <https://mayur175.github.io/tr-dependency-analyser/dist/com.gmw.gcts.analyzer.updatesite-1.0.0.zip>
+   (49 KB)
+
+   Or build it yourself from source:
    ```bash
    cd "TR dependency/eclipse"
    mvn clean package -DskipTests
    ```
-   Output: `com.gmw.gcts.analyzer.updatesite/target/repository/` and
-   `com.gmw.gcts.analyzer.updatesite-1.0.0-SNAPSHOT.zip`.
+   Built ZIP: `com.gmw.gcts.analyzer.updatesite/target/com.gmw.gcts.analyzer.updatesite-*.zip`.
 2. In Eclipse: **Help → Install New Software → Add → Archive…**
 3. Browse to the ZIP **or** the unpacked `repository/` folder.
 4. Tick **TR Analyser for ADT** → **Next** → **Next** → **Finish** →
@@ -64,9 +67,12 @@ air-gapped network, etc.).
 
 Use this when you just want to drop one file into Eclipse and restart.
 
-1. Run `mvn package` (as in Method 2) and locate
-   `eclipse/com.gmw.gcts.analyzer/target/com.gmw.gcts.analyzer-*.jar`
-   (about 42 KB).
+1. Download the plugin JAR:
+   <https://mayur175.github.io/tr-dependency-analyser/dist/com.gmw.gcts.analyzer-1.0.0.jar>
+   (42 KB)
+
+   Or build it yourself: `mvn package` (as in Method 2), then locate
+   `eclipse/com.gmw.gcts.analyzer/target/com.gmw.gcts.analyzer-*.jar`.
 2. Copy that single JAR into your Eclipse installation's `dropins/`
    folder. Locations:
    - **macOS:** `/Applications/Eclipse.app/Contents/Eclipse/dropins/`

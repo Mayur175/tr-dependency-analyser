@@ -12,7 +12,7 @@ You will create exactly **3 mandatory + 1 optional** objects:
 
 | # | Object | Type | Mandatory? | Source file |
 |---|--------|------|------------|-------------|
-| 1 | `ZGCTS_DEP_HISTORY` | Database table | **Yes** — analyzer writes to it | `01_ZGCTS_DEP_HISTORY.tabl.txt` |
+| 1 | `ZGCTS_HIST` | Database table | **Yes** — analyzer writes to it | `01_ZGCTS_HIST.tabl.txt` |
 | 2 | `ZCL_GCTS_TR_ANALYZER` | Class — analysis engine | **Yes** — main logic | `02_ZCL_GCTS_TR_ANALYZER.clas.txt` + `02_ZCL_GCTS_TR_ANALYZER.locals.txt` |
 | 3 | `ZGCTS_ANALYZE_HANDLER` | Class — HTTP handler | **Yes** — Eclipse plugin calls it | `03_ZGCTS_ANALYZE_HANDLER.clas.txt` |
 | 4 | `ZCL_GCTS_DEP_ATC_CHECK` | Class — ATC plug-in | Optional | `04_ZCL_GCTS_DEP_ATC_CHECK.clas.txt` + `04_ZCL_GCTS_DEP_ATC_CHECK.locals.txt` |
@@ -36,14 +36,14 @@ Detailed step-by-step per object below.
 
 ---
 
-## Step 1 — Create `ZGCTS_DEP_HISTORY` (database table)
+## Step 1 — Create `ZGCTS_HIST` (database table)
 
 1. Right-click your package → **New** → **Other ABAP Repository Object** → search **Database Table** → **Next**.
-2. Name: `ZGCTS_DEP_HISTORY`.
+2. Name: `ZGCTS_HIST`.
    Description: `TR Analyser - Dependency Analysis History`.
    Pick your TR. **Finish**.
 3. The empty table opens in the DDL editor.
-4. Open `01_ZGCTS_DEP_HISTORY.tabl.txt` from this folder, **select all → copy**.
+4. Open `01_ZGCTS_HIST.tabl.txt` from this folder, **select all → copy**.
 5. In the ADT editor, **select all → paste** (replaces the entire content).
 6. **Ctrl+S** → **Ctrl+F3** (activate). Icon turns green.
 

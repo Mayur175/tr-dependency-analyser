@@ -10,7 +10,7 @@
 "!                               tr=GMWK900691,DEVK900042  (cross-TR)
 "!                               tr=GMWK900692         (single task)
 "!   format    (optional) - 'json' (default) | 'csv'
-"!   persist   (optional) - '1' / 'true' -> save result to ZGCTS_DEP_HISTORY
+"!   persist   (optional) - '1' / 'true' -> save result to ZGCTS_HIST
 "!   external  (optional) - '1' / 'true' -> include external INFO dependencies
 "!
 "! Authorisation:

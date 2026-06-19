@@ -15,7 +15,7 @@ TR dependency/abap/
     ├── zcl_gcts_dep_atc_check.clas.abap        ← ATC check
     ├── zcl_gcts_dep_atc_check.clas.locals_def.abap
     ├── zcl_gcts_dep_atc_check.clas.xml
-    └── zgcts_dep_history.tabl.xml              ← persistence table (DD02V/DD03P/DD09L)
+    └── zgcts_hist.tabl.xml              ← persistence table (DD02V/DD03P/DD09L)
 ```
 
 The `.abapgit.xml` declares:
@@ -70,7 +70,7 @@ In your SAP system:
    - `ZCL_GCTS_TR_ANALYZER`,
    - `ZGCTS_ANALYZE_HANDLER`,
    - `ZCL_GCTS_DEP_ATC_CHECK`,
-   - `ZGCTS_DEP_HISTORY`.
+   - `ZGCTS_HIST`.
 
 ---
 
@@ -119,7 +119,7 @@ abapGit shows the diff before applying. Activate the changed objects.
 | Before abapGit packaging | After (today) |
 |---|---|
 | Open each `.clas.abap` file, paste into ADT, activate, repeat 4× | One **abapGit Online → Pull** |
-| Table created manually in SE11 | Generated from `zgcts_dep_history.tabl.xml` |
+| Table created manually in SE11 | Generated from `zgcts_hist.tabl.xml` |
 | Updates require pasting again | `git pull` + abapGit **Pull** |
 | SICF node still manual | SICF node still manual (one-time, Step 2) |
 
@@ -131,14 +131,14 @@ This is the install-experience parity goal flagged as **Gap C** in
 ## Caveats and known limits
 
 - **First-time install on a brand-new SAP system**: abapGit's table importer
-  must be able to create `ZGCTS_DEP_HISTORY` from `zgcts_dep_history.tabl.xml`.
+  must be able to create `ZGCTS_HIST` from `zgcts_hist.tabl.xml`.
   If the import fails (older abapGit versions or unusual technical settings),
   fall back to creating the table manually in `SE11` from the field list in
   the XML, then pull again — the existing table will be reconciled, not
   overwritten.
 - **`MANDT` field role**: included in the key for transparent table
   consistency. If your customer convention disallows `MANDT` on Z-tables,
-  adjust the `.tabl.xml` and the `INSERT zgcts_dep_history` calls in
+  adjust the `.tabl.xml` and the `INSERT zgcts_hist` calls in
   `zcl_gcts_tr_analyzer.clas.abap` (`persist_result`).
 - **abapGit version**: any release from 2023 onward handles the layout used
   here. Older versions (< 1.121) may flag the `<EXCLASS>1</EXCLASS>` element

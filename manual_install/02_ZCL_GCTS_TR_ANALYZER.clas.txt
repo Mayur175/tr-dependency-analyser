@@ -866,19 +866,19 @@ CLASS zcl_gcts_tr_analyzer IMPLEMENTATION.
 
 
 " =============================================================================
-" PERSIST_RESULT - write to ZGCTS_DEP_HISTORY
+" PERSIST_RESULT - write to ZGCTS_HIST
 " =============================================================================
   METHOD persist_result.
     " For multi-input runs we persist mv_label as the "TR" value so the
-    " analysis can be located later by querying ZGCTS_DEP_HISTORY-tr_id.
-    DATA lv_ts   TYPE zgcts_dep_history-run_ts.
+    " analysis can be located later by querying ZGCTS_HIST-tr_id.
+    DATA lv_ts   TYPE zgcts_hist-run_ts.
     DATA lv_date TYPE d.
     DATA lv_time TYPE t.
     lv_date = cl_abap_context_info=>get_system_date( ).
     lv_time = cl_abap_context_info=>get_system_time( ).
     lv_ts = lv_date * 1000000 + lv_time.
 
-    DATA lt_rows TYPE STANDARD TABLE OF zgcts_dep_history WITH EMPTY KEY.
+    DATA lt_rows TYPE STANDARD TABLE OF zgcts_hist WITH EMPTY KEY.
 
     LOOP AT mt_deps INTO DATA(ls_dep).
       DATA(lv_risk)   = risk_of_task(        ls_dep-source_task ).
@@ -900,11 +900,11 @@ CLASS zcl_gcts_tr_analyzer IMPLEMENTATION.
     ENDLOOP.
 
     IF lt_rows IS NOT INITIAL.
-      INSERT zgcts_dep_history FROM TABLE lt_rows.
+      INSERT zgcts_hist FROM TABLE lt_rows.
       IF sy-subrc <> 0.
         out( |WARN: persist_result - INSERT returned sy-subrc { sy-subrc }| ).
       ELSE.
-        out( |INFO: { lines( lt_rows ) } rows saved to ZGCTS_DEP_HISTORY (run { lv_ts })| ).
+        out( |INFO: { lines( lt_rows ) } rows saved to ZGCTS_HIST (run { lv_ts })| ).
       ENDIF.
     ENDIF.
   ENDMETHOD.

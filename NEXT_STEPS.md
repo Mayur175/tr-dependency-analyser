@@ -22,7 +22,7 @@ sandbox / development client.
    - `ZCL_GCTS_TR_ANALYZER` (the main analyser class)
    - `ZGCTS_ANALYZE_HANDLER` (the HTTP handler)
    - `ZCL_GCTS_DEP_ATC_CHECK` (the ATC plug-in)
-   - `ZGCTS_DEP_HISTORY` (the history table)
+   - `ZGCTS_HIST` (the history table)
 
 **You'll know it worked when:** all four objects activate without error.
 

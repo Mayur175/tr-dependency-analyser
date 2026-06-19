@@ -54,7 +54,7 @@ This is the lowest-risk way to prove the tool out before any public listing.
 3. Recruit **5-10 developers from your own team** as pilot users. Run for
    2 sprints. Collect feedback in a single GitHub issue.
 4. Track these metrics:
-   - Number of analyses run (telemetry from `ZGCTS_DEP_HISTORY`)
+   - Number of analyses run (telemetry from `ZGCTS_HIST`)
    - % of pilot users who run it more than once (ad-hoc → habit)
    - Number of dependency-related QA failures **before** vs **during** the pilot
 5. Exit criteria for Stage A:

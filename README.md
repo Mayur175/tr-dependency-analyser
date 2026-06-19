@@ -105,7 +105,7 @@ Prerequisite: abapGit installed on your SAP system, see
 2. Git URL: this repository's HTTPS URL. Sub-folder: `/TR dependency/abap/`
    (the `.abapgit.xml` lives here).
 3. Pick a target customer package (e.g. `ZGCTS`) and a transport.
-4. **Pull** → all four classes + the `ZGCTS_DEP_HISTORY` table import in one
+4. **Pull** → all four classes + the `ZGCTS_HIST` table import in one
    step. Activate (Ctrl+F3).
 5. Configure the ICF service node `/sap/bc/zgcts/analyze` once — see
    `TR dependency/abap/docs/SICF_SETUP.md` (this part is not in abapGit's
@@ -118,7 +118,7 @@ templates) is in `TR dependency/abap/INSTALL_VIA_ABAPGIT.md`.
 
 If your SAP system has no abapGit, paste each `.abap` file from
 `TR dependency/abap/src/` into ADT (`SE80` / `New ABAP Class`), create the
-table from the field list in `zgcts_dep_history.tabl.xml`, then configure
+table from the field list in `zgcts_hist.tabl.xml`, then configure
 SICF as described in `docs/SICF_SETUP.md`.
 
 ---

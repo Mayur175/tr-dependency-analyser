@@ -114,7 +114,7 @@ abap/
     zcl_gcts_tr_analyzer.clas.locals_def.abap
     zgcts_analyze_handler.clas.abap
     zgcts_analyze_handler.clas.xml
-    zgcts_dep_history.tabl.xml           ← table object metadata (DD02V/DD09L)
+    zgcts_hist.tabl.xml           ← table object metadata (DD02V/DD09L)
     ...
 ```
 
@@ -216,7 +216,7 @@ Specifically:
 ```
 1. ADT → connect to the target SAP system
 2. New → ABAP Class → ZCL_GCTS_TR_ANALYZER → paste contents of the matching .abap file → activate
-3. Repeat for ZGCTS_ANALYZE_HANDLER, ZCL_GCTS_DEP_ATC_CHECK, table ZGCTS_DEP_HISTORY
+3. Repeat for ZGCTS_ANALYZE_HANDLER, ZCL_GCTS_DEP_ATC_CHECK, table ZGCTS_HIST
 4. SICF: create node /sap/bc/zgcts/analyze, handler ZGCTS_ANALYZE_HANDLER, activate
 5. Verify with curl  (see TR dependency/abap/docs/SICF_SETUP.md)
 ```

@@ -3,7 +3,7 @@
 @AbapCatalog.tableCategory : #TRANSPARENT
 @AbapCatalog.deliveryClass : #A
 @AbapCatalog.dataMaintenance : #ALLOWED
-define table zgcts_dep_history {
+define table zgcts_hist {
 
   key client      : abap.clnt    not null;
   key tr_id       : abap.char(20) not null;

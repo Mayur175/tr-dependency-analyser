@@ -74,7 +74,7 @@ review of the source surfaces these gaps:
 | A5 | XCO calls are not wrapped in `TRY...CATCH cx_root` in every spot the plan demands (the plan §"ABAP Development Conventions" says they must be). Activation errors on a missing CDS view will propagate as `CX_SY_REF_IS_INITIAL` | M | `deps_for_ddls`, `deps_for_ddlx` |
 | A6 | Missing extractors for: PROG, REPS, FUGR sub-elements (FUNC), MSAG, ENHO, ENHS, ENQU, SHLP, SRVD, SRVB, AMDP impl class flag — already covered in Phase 8 of the solution plan but not implemented | M | per-type list |
 | A7 | No source-level dependency scan (no use of `cl_abap_compiler`). Misses `CALL FUNCTION`, `NEW zcl_*`, `INCLUDE` references | M | (Phase 5 of the plan) |
-| A8 | `ZGCTS_DEP_HISTORY` schema not visible in this review — its DDL exists at `abap/zgcts_dep_history/zgcts_dep_history.tabl.ddls` but its key shape (does it include sequence number? does it allow multi-TR analyses?) is not validated | M | inspect the file |
+| A8 | `ZGCTS_HIST` schema not visible in this review — its DDL exists at `abap/zgcts_hist/zgcts_hist.tabl.ddls` but its key shape (does it include sequence number? does it allow multi-TR analyses?) is not validated | M | inspect the file |
 | A9 | `to_csv()` and `to_json()` build strings via concatenation in ABAP — for big TRs this allocates many short strings. ABAP's `string_table` + `concat_lines_of` would be faster | L | `to_json`, `to_csv` |
 | A10 | `ZCL_GCTS_DEP_ATC_CHECK` reads the JSON it just produced — round-tripping data internally. Should keep an in-memory result handle instead | L | ATC class file |
 | A11 | No I18N. All messages are English-only string literals. SAP standard expects T100 messages | L | error texts |
@@ -86,7 +86,7 @@ review of the source surfaces these gaps:
 
 | # | Gap | Severity | Evidence |
 |---|-----|----------|----------|
-| W1 | **No CSRF token handling.** The handler accepts GET requests without any CSRF check. SAP best practice for write-side ICF endpoints is to require `X-CSRF-Token`. Read-only GET is acceptable, but `?persist=true` writes to `ZGCTS_DEP_HISTORY` without any token — that's a state-changing operation hidden behind GET | **H** | `zgcts_analyze_handler.clas.abap` |
+| W1 | **No CSRF token handling.** The handler accepts GET requests without any CSRF check. SAP best practice for write-side ICF endpoints is to require `X-CSRF-Token`. Read-only GET is acceptable, but `?persist=true` writes to `ZGCTS_HIST` without any token — that's a state-changing operation hidden behind GET | **H** | `zgcts_analyze_handler.clas.abap` |
 | W2 | **No rate limiting.** A scripted client can hit `/sap/bc/zgcts/analyze?tr=*` thousands of times. Phase 1's multi-TR support amplifies this | M | same |
 | W3 | **HTTP cache headers absent.** The result for a given `(tr, version)` is deterministic until any object in the TR changes. `ETag` + `If-None-Match` would let Eclipse cache, but the handler sets no headers | M | same |
 | W4 | **JSON schema is implicit.** No JSON Schema document published. Phase 4 (GitHub PR check) will be a third consumer; without a schema, contract drift is easy | M | `to_json()` ABAP method |
@@ -130,7 +130,7 @@ review of the source surfaces these gaps:
 | O1 | **No central logging.** ABAP side has no `cl_application_log` writes. ICF handler errors land in `ST22` only on dump, not on regular HTTP errors | M | `zgcts_analyze_handler.clas.abap` |
 | O2 | **No metrics.** Number of analyses run, average duration, hit/miss on cache (none today), HTTP status code distribution — none of these are emitted | M | absence |
 | O3 | **No alerting on `ZGCTS_DEP_INCIDENT` (Phase 7).** The table is referenced in the plan but never wired to email / Solman / Teams | L | future work |
-| O4 | **No versioned migration path** for the persistence tables. When `ZGCTS_DEP_HISTORY` schema changes, existing rows must be migrated. No DDL versioning convention | L | DDL files |
+| O4 | **No versioned migration path** for the persistence tables. When `ZGCTS_HIST` schema changes, existing rows must be migrated. No DDL versioning convention | L | DDL files |
 | O5 | **No graceful degradation when XCO is unavailable on Public Cloud due to release wave change.** Today's code crashes; no feature-flag mechanism | M | (Phase 2 of the solution plan addresses this) |
 | O6 | **No ATC integration test harness.** `ZCL_GCTS_DEP_ATC_CHECK` exists but to validate it on a real run requires a real cross-task TR — that's expensive to set up. Need a fixture | M | absence |
 
@@ -144,7 +144,7 @@ review of the source surfaces these gaps:
 | S2 | **Basic auth credentials in plain-text-ish base64 over the wire.** This is the standard SAP ICF auth, but the plan should mandate HTTPS-only (TLS 1.2+) and document this | M | plan + ICF docs |
 | S3 | **No secret rotation guidance.** `ZGCTS_ANALYZE_HANDLER` runs as the calling user, but if a service user is configured (some teams do this), there's no rotation policy | L | docs |
 | S4 | **Eclipse Secure Storage's master password is the OS keychain** on macOS/Windows, but on Linux it falls back to a prompted master password. Documented behaviour is opaque to most ABAP developers | L | docs |
-| S5 | **No audit log of `?persist=true` runs.** Anyone who can call the ICF can flood `ZGCTS_DEP_HISTORY` | M | ICF handler |
+| S5 | **No audit log of `?persist=true` runs.** Anyone who can call the ICF can flood `ZGCTS_HIST` | M | ICF handler |
 
 ---
 

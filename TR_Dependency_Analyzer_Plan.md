@@ -778,7 +778,7 @@ ABAP Cleaner-grade distribution. Zest visual graph view.
 
 ### Phase 4 — Enterprise Features ✅ Complete
 - [x] **Gap 5:** `ZCL_GCTS_DEP_ATC_CHECK` — ATC check class raises findings (Priority 1/2/3) for CRITICAL/HIGH/MEDIUM dependencies; registers via SE92/ATC framework; uses `lcl_atc_json_reader` local class to parse pipeline JSON
-- [x] **Gap 8 ABAP:** `ZGCTS_DEP_HISTORY` database table — stores one row per dependency edge per run; `persist_result()` method writes to it; `to_csv()` method for flat file export
+- [x] **Gap 8 ABAP:** `ZGCTS_HIST` database table — stores one row per dependency edge per run; `persist_result()` method writes to it; `to_csv()` method for flat file export
 - [x] **Gap 8 Java:** `ExportCsvAction.java` — toolbar button in `DependencyResultView`; opens Save dialog; writes RFC 4180 CSV; enabled only after a successful result
 - [x] **Gap 7:** `gv_include_external = abap_true` flag on analyzer; `add_external_dep()` records INFO-level (`EXT_*` kind prefix) edges; ICF handler exposes `?external=true` parameter
 - [x] **ICF handler updated:** `?format=csv`, `?persist=true`, `?external=true` query params
@@ -819,8 +819,8 @@ TR dependency/
 │   ├── zgcts_analyze_handler/
 │   │   └── zgcts_analyze_handler.clas.abap            ← ICF handler: ?format, ?persist, ?external
 │   │
-│   ├── zgcts_dep_history/
-│   │   └── zgcts_dep_history.tabl.ddls                ← DB table DDL for analysis history
+│   ├── zgcts_hist/
+│   │   └── zgcts_hist.tabl.ddls                ← DB table DDL for analysis history
 │   │
 │   ├── zcl_gcts_dep_atc_check/
 │   │   ├── zcl_gcts_dep_atc_check.clas.abap          ← ATC check: raises P1/P2/P3 findings
@@ -1349,7 +1349,7 @@ When ABAP source files change, re-deploy them manually in ADT:
 | Local Types | `abap/zcl_gcts_tr_analyzer/zcl_gcts_tr_analyzer.clas.locals_def.abap` | Paste into **Local Types** tab of the class |
 | `ZGCTS_ANALYZE_HANDLER` | `abap/zgcts_analyze_handler/zgcts_analyze_handler.clas.abap` | Paste into ADT → Activate |
 | `ZCL_GCTS_DEP_ATC_CHECK` | `abap/zcl_gcts_dep_atc_check/zcl_gcts_dep_atc_check.clas.abap` | Paste into ADT → Activate |
-| `ZGCTS_DEP_HISTORY` | `abap/zgcts_dep_history/zgcts_dep_history.tabl.ddls` | Create table in ADT → Activate |
+| `ZGCTS_HIST` | `abap/zgcts_hist/zgcts_hist.tabl.ddls` | Create table in ADT → Activate |
 
 After changing the ICF handler, test the endpoint:
 ```bash

@@ -17,7 +17,7 @@ Every finding is graded **P0** (block release), **P1** (next sprint), **P2**
 
 | Layer | Files reviewed | Highest severity open | Recommendation |
 |---|---|---|---|
-| SAP / ABAP   | `zcl_gcts_tr_analyzer.clas.abap` (912 LoC), `zgcts_analyze_handler.clas.abap` (251 LoC), `zcl_gcts_dep_atc_check.clas.abap`, `zgcts_dep_history.tabl.xml` | **P0** — design correctness in `stage3_clusters` (commas in tasks string) and recursive `uf_find` | Refactor cluster storage and Union-Find before any pilot |
+| SAP / ABAP   | `zcl_gcts_tr_analyzer.clas.abap` (912 LoC), `zgcts_analyze_handler.clas.abap` (251 LoC), `zcl_gcts_dep_atc_check.clas.abap`, `zgcts_hist.tabl.xml` | **P0** — design correctness in `stage3_clusters` (commas in tasks string) and recursive `uf_find` | Refactor cluster storage and Union-Find before any pilot |
 | Python       | `simulate_pipeline.py` (468 LoC), `mock_sap_data.py` (~620 LoC), `verify_json_contract.py` | **P1** — no test runner / no CI hook; one O(N×M) loop in TR aggregation | Wrap simulator in `pytest`, gate it in CI |
 | Java         | `AnalyzerHttpClient.java` (219 LoC), `AnalysisResult.java` (275 LoC), `AnalyzeTRHandler.java`, `DependencyResultView.java`, `TrDetector.java`, `AnalyzerPreferencePage.java` | **P0** — hand-rolled JSON parser is unsafe (already on the project's known-gap list E6); single-TR API only | Replace parser with org.json or Jackson; introduce `analyze(List<String>)` |
 
@@ -133,9 +133,9 @@ first match.
 already know the target type (it's a string literal in every `add_dep`), so
 plumbing the type through is mechanical.
 
-### 🟠 P1 — `ZGCTS_DEP_HISTORY` does not include a sequence column
+### 🟠 P1 — `ZGCTS_HIST` does not include a sequence column
 
-**File:** `abap/src/zgcts_dep_history.tabl.xml` (referenced from analyser
+**File:** `abap/src/zgcts_hist.tabl.xml` (referenced from analyser
 line 887-899)
 
 `run_ts` is the only ordering key. Two analyses at the same second clobber

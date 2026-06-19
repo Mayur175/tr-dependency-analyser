@@ -2,7 +2,7 @@
 
 **Reviewer hat:** Senior SAP Technical Architect / Basis lead, ~15 years.
 **Scope:** the four objects in `manual_install/` (and their canonical source under
-`abap/src/`) — the table `ZGCTS_DEP_HISTORY` and three classes
+`abap/src/`) — the table `ZGCTS_HIST` and three classes
 (`ZCL_GCTS_TR_ANALYZER`, `ZGCTS_ANALYZE_HANDLER`, `ZCL_GCTS_DEP_ATC_CHECK`).
 **Style:** every finding cites the file/line, gives the SAP convention being
 violated (or improved on), and rates **P0** (block prod) / **P1** (next sprint) /
@@ -28,9 +28,9 @@ Audited against the user's stated limits:
 | Database table | 1 | 0 | **1** ❌ |
 | Class names | 3 | 3 | 0 ✅ |
 | Method names (across all 3 classes) | 42 | 42 | 0 ✅ |
-| Field names in `ZGCTS_DEP_HISTORY` | 12 | 12 | 0 ✅ (SAP DDIC field limit is 16) |
+| Field names in `ZGCTS_HIST` | 12 | 12 | 0 ✅ (SAP DDIC field limit is 16) |
 
-### 0.2 The violation — `ZGCTS_DEP_HISTORY` is 17 characters
+### 0.2 The violation — `ZGCTS_HIST` is 17 characters
 
 ```
 Z G C T S _ D E P _ H I S T O R Y
@@ -56,10 +56,10 @@ the broader rename to drop `gcts/GCTS` happens (see §5.1 below).
 
 Either way, the rename touches three places:
 
-1. `manual_install/01_ZGCTS_DEP_HISTORY.tabl.txt` — file content + filename.
-2. `abap/src/zgcts_dep_history.tabl.xml` — `<TABNAME>` element.
+1. `manual_install/01_ZGCTS_HIST.tabl.txt` — file content + filename.
+2. `abap/src/zgcts_hist.tabl.xml` — `<TABNAME>` element.
 3. `abap/src/zcl_gcts_tr_analyzer.clas.abap` — `persist_result` method
-   (the `INSERT zgcts_dep_history FROM TABLE …` statement).
+   (the `INSERT zgcts_hist FROM TABLE …` statement).
 
 Plus filename of the manual-install file (e.g.
 `01_ZGCTS_HIST.tabl.txt`).
@@ -91,7 +91,7 @@ The longest method names across the three classes:
 
 Comfortably under the 30-char limit. **No renames needed.**
 
-### 0.6 Field-name audit on `ZGCTS_DEP_HISTORY` (all PASS, ≤ 16 chars)
+### 0.6 Field-name audit on `ZGCTS_HIST` (all PASS, ≤ 16 chars)
 
 The longest field name is `pull_action` at 11 chars; SAP's DDIC field-name
 limit is 16. **No renames needed.** *(Note: the field types still need
@@ -101,7 +101,7 @@ fixing per §1.2 — that's a separate issue from naming length.)*
 
 | Action | Severity | Effort |
 |---|---|---|
-| Rename `ZGCTS_DEP_HISTORY` → `ZGCTS_HIST` (or `ZTR_DEPHIS`) | **P0** (10-char limit blocker) | 30 min — three find-and-replace touches |
+| Rename `ZGCTS_HIST` → `ZGCTS_HIST` (or `ZTR_DEPHIS`) | **P0** (10-char limit blocker) | 30 min — three find-and-replace touches |
 
 This single rename clears the entire naming-compliance audit.
 
@@ -111,22 +111,22 @@ This single rename clears the entire naming-compliance audit.
 
 | Object | Naming | Types & lengths | Methods | Settings | Verdict |
 |---|---|---|---|---|---|
-| `ZGCTS_DEP_HISTORY` (table) | ⚠ "gcts" prefix is now misleading | 🔴 wrong types for nearly every column | n/a | ⚠ missing technical settings | **Needs P0+P1 rework** |
+| `ZGCTS_HIST` (table) | ⚠ "gcts" prefix is now misleading | 🔴 wrong types for nearly every column | n/a | ⚠ missing technical settings | **Needs P0+P1 rework** |
 | `ZCL_GCTS_TR_ANALYZER` | ⚠ same prefix issue | 🔴 internal types are all `TYPE string` instead of typed | 🟠 some hidden races and recursive walks | ⚠ no exception classes raised | **Needs P0+P1 rework** |
 | `ZGCTS_ANALYZE_HANDLER` | ⚠ same | 🟠 acceptable | 🟠 weak input validation | 🔴 cloud-incompatible interface | **Needs P0 (cloud port) + P1** |
 | `ZCL_GCTS_DEP_ATC_CHECK` | ⚠ same | 🔴 references missing message class | 🔴 string slicing crashes on short input | 🔴 inherits deprecated framework | **Block — do not install yet** |
 
 **The 3 most important fixes before any pilot rollout:**
 
-1. **Replace generic `CHAR/STRING` columns with proper SAP data elements** in `ZGCTS_DEP_HISTORY` (TRKORR for transport ids, SOBJ_NAME for objects, TIMESTAMPL for timestamps, domain-backed data elements for risk/kind/action).
+1. **Replace generic `CHAR/STRING` columns with proper SAP data elements** in `ZGCTS_HIST` (TRKORR for transport ids, SOBJ_NAME for objects, TIMESTAMPL for timestamps, domain-backed data elements for risk/kind/action).
 2. **Stop using `cl_demo_output`** in `stage4_output` of `ZCL_GCTS_TR_ANALYZER` — this is a debug API, not a production output channel.
 3. **Either ship the `ZGCTS_DEP_MSG` message class** referenced by `ZCL_GCTS_DEP_ATC_CHECK`, or remove the ATC class from the install set until it exists.
 
 ---
 
-# 1. Database table `ZGCTS_DEP_HISTORY`
+# 1. Database table `ZGCTS_HIST`
 
-**Source:** `manual_install/01_ZGCTS_DEP_HISTORY.tabl.txt` (DDL), `abap/src/zgcts_dep_history.tabl.xml` (canonical).
+**Source:** `manual_install/01_ZGCTS_HIST.tabl.txt` (DDL), `abap/src/zgcts_hist.tabl.xml` (canonical).
 
 ## 1.1 Strengths
 
@@ -250,7 +250,7 @@ Modern DDL supports:
 @AbapCatalog.compatibilityVersion : 1               -- ABAP cloud requirement
 ```
 
-Today `01_ZGCTS_DEP_HISTORY.tabl.txt` is missing `preserveKey` and
+Today `01_ZGCTS_HIST.tabl.txt` is missing `preserveKey` and
 `compatibilityVersion`. On BTP ABAP Environment activation will warn or fail
 without `compatibilityVersion`.
 
@@ -278,7 +278,7 @@ class name carries that history:
 |---|---|
 | `ZCL_GCTS_TR_ANALYZER` | `ZCL_TR_DEP_ANALYZER` or `ZCL_TR_ANALYSER_CORE` |
 | `ZGCTS_ANALYZE_HANDLER` | `ZTR_ANALYSER_HTTP_HANDLER` |
-| `ZGCTS_DEP_HISTORY` | `ZTR_DEP_HISTORY` |
+| `ZGCTS_HIST` | `ZTR_DEP_HISTORY` |
 | `ZCL_GCTS_DEP_ATC_CHECK` | `ZCL_TR_DEP_ATC_CHECK` |
 
 This is a **breaking rename** — must wait for v2. For v1 just live with the
@@ -597,7 +597,7 @@ would break the JSON.
 
 ### 🟠 P1.H5 — No CSRF token check on `?persist=true`
 
-`?persist=true` writes to `ZGCTS_DEP_HISTORY`. SAP standard says state-changing
+`?persist=true` writes to `ZGCTS_HIST`. SAP standard says state-changing
 GET endpoints should require `X-CSRF-Token`. Today an attacker who has the
 target user's session cookie can flood the table.
 
@@ -749,7 +749,7 @@ correct release-specific form.
 
 | Today | Proposal for v2 |
 |---|---|
-| `ZGCTS_DEP_HISTORY` | `ZTR_DEP_HISTORY` |
+| `ZGCTS_HIST` | `ZTR_DEP_HISTORY` |
 | `ZCL_GCTS_TR_ANALYZER` | `ZCL_TR_DEP_ENGINE` |
 | `ZGCTS_ANALYZE_HANDLER` | `ZCL_TR_DEP_HTTP_HANDLER` |
 | `ZCL_GCTS_DEP_ATC_CHECK` | `ZCL_TR_DEP_ATC_CHECK` |
@@ -768,7 +768,7 @@ A proper SAP design would ship:
 | `ZDOM_DEP_KIND` | Domain | Fixed values: IMPLEMENTS / INHERITS / TYPE_REF / USES / CALLS / CONFLICT |
 | `ZDOM_DEP_RISK` | Domain | Fixed values: CRITICAL / HIGH / MEDIUM / NONE |
 | `ZDOM_DEP_ACTION` | Domain | Fixed values: COORDINATE / TOGETHER / TOGETHER_RECOMMENDED / ALONE |
-| `ZDE_DEP_KIND` | Data element on the domain | Used by `ty_dep-kind`, `ZGCTS_DEP_HISTORY-kind` |
+| `ZDE_DEP_KIND` | Data element on the domain | Used by `ty_dep-kind`, `ZGCTS_HIST-kind` |
 | `ZDE_DEP_RISK` | Data element on the domain | Same |
 | `ZDE_DEP_ACTION` | Data element on the domain | Same |
 | `ZDE_DEP_CLUSTER_LBL` | Data element CHAR 30 | Cluster label |
@@ -811,7 +811,7 @@ is uninsured.
 
 | # | File | Issue | Severity |
 |---|---|---|---|
-| 1 | `ZGCTS_DEP_HISTORY` | Use TRKORR / SOBJ_NAME / TIMESTAMPL / domain-backed data elements instead of generic `CHAR(N)` | P0 |
+| 1 | `ZGCTS_HIST` | Use TRKORR / SOBJ_NAME / TIMESTAMPL / domain-backed data elements instead of generic `CHAR(N)` | P0 |
 | 2 | `ZCL_GCTS_TR_ANALYZER` | Delete `CLASS-DATA gv_tr_id` and `gv_include_external` (race condition) | P0 |
 | 3 | `ZCL_GCTS_TR_ANALYZER` | `tasks` field of cluster: change from comma-string to typed table; fix `CS` substring matches | P0 |
 | 4 | `ZCL_GCTS_TR_ANALYZER` | `uf_find` recursive → iterative | P0 |
@@ -839,8 +839,8 @@ is uninsured.
 
 | # | File | Issue |
 |---|---|---|
-| 19 | `ZGCTS_DEP_HISTORY` | Add secondary index on `(SRC_OBJ_NAME, TGT_OBJ_NAME)` |
-| 20 | `ZGCTS_DEP_HISTORY` | Add `@AbapCatalog.compatibilityVersion : 1` annotation |
+| 19 | `ZGCTS_HIST` | Add secondary index on `(SRC_OBJ_NAME, TGT_OBJ_NAME)` |
+| 20 | `ZGCTS_HIST` | Add `@AbapCatalog.compatibilityVersion : 1` annotation |
 | 21 | `ZCL_GCTS_TR_ANALYZER` | Implement DDLS / DDLX / BDEF extractors |
 | 22 | `ZCL_GCTS_DEP_ATC_CHECK` | Verify XCO `transport_request_filter->object(...)` syntax on real release |
 | 23 | All | Migrate hard-coded English strings to T100 message class |
@@ -854,7 +854,7 @@ If the user is on a personal sandbox, accepting the audit caveats above:
 
 | Object | Install today? |
 |---|---|
-| `ZGCTS_DEP_HISTORY` | ⚠ Yes for sandbox, but plan a rebuild before QA |
+| `ZGCTS_HIST` | ⚠ Yes for sandbox, but plan a rebuild before QA |
 | `ZCL_GCTS_TR_ANALYZER` | ⚠ Yes for sandbox; static-data race (P0.A5) and `CS` substring (P0.A7) defects can fire on real-world TRs but won't on small pilots |
 | `ZGCTS_ANALYZE_HANDLER` | ⚠ Yes for sandbox if the edition supports `IF_HTTP_EXTENSION`; otherwise won't activate |
 | `ZCL_GCTS_DEP_ATC_CHECK` | ❌ **Do not install yet** (missing `ZGCTS_DEP_MSG`, deprecated parent class) |
@@ -867,7 +867,7 @@ For QA / PROD, the P0 list above must be cleared first.
 
 1. **Today / sandbox:** install table + analyser + HTTP handler. Skip the ATC class until P0.C1 / P0.C2 / P0.C3 are fixed. Test the analysis flow end-to-end on a real TR.
 2. **Within 1 week:** address P0.A5 (race), P0.A7 (substring), P0.A8 (cl_demo_output), P0.H2 (default auth=true after pilot). Push to GitHub.
-3. **Within 2-3 weeks:** rebuild `ZGCTS_DEP_HISTORY` with proper SAP types (P0.T1, P0.T2, P0.T3) — small data migration script needed if the table already has rows.
+3. **Within 2-3 weeks:** rebuild `ZGCTS_HIST` with proper SAP types (P0.T1, P0.T2, P0.T3) — small data migration script needed if the table already has rows.
 4. **Within 4 weeks:** ship the cloud-compatible `_CLOUD` handler, the modernised ATC class, and the missing `ZGCTS_DEP_MSG` message class.
 5. **v2:** rename to `Z*TR_DEP_*` prefix, add proper data elements / domains, T100 messages, ABAP Unit tests.
 

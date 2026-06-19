@@ -53,7 +53,7 @@ dependency graph.
 | Eclipse plugin UI (right-click TR → view) | ✅ Implemented (corrected this round) | `com.gmw.gcts.analyzer` plugin |
 | ICF endpoint for Eclipse | ✅ Implemented | `ZGCTS_ANALYZE_HANDLER` |
 | ATC integration | ✅ Implemented | `ZCL_GCTS_DEP_ATC_CHECK` |
-| Persistent history | ✅ Implemented | `ZGCTS_DEP_HISTORY` table |
+| Persistent history | ✅ Implemented | `ZGCTS_HIST` table |
 
 ### What the project does NOT cover (gap-driven plan below)
 
@@ -110,7 +110,7 @@ integration surfaces and one analytical core:
        │                       │                        │
 ┌──────┴───────────────────────┴────────────────────────┴────────────────┐
 │                Persistence layer (DB tables)                           │
-│  ZGCTS_DEP_HISTORY  one row per analysis edge                          │
+│  ZGCTS_HIST  one row per analysis edge                          │
 │  ZGCTS_DEP_RUN      one header per analysis run (TR set, user, time)   │
 │  ZGCTS_DEP_INCIDENT post-import failure tied back to a missed warning  │
 └────────────────────────────────────────────────────────────────────────┘

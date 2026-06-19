@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>TR Dependency Analyser — Eclipse Update Site</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+           max-width: 720px; margin: 40px auto; padding: 0 20px; color: #222; line-height: 1.55; }
+    h1 { border-bottom: 1px solid #ccc; padding-bottom: 8px; }
+    code { background: #f4f4f4; padding: 2px 6px; border-radius: 4px; font-size: 0.95em; }
+    pre  { background: #f4f4f4; padding: 12px; border-radius: 6px; overflow-x: auto; }
+    .url { font-size: 1.1em; font-weight: 600; }
+    .step { margin: 18px 0; }
+    a { color: #0366d6; }
+  </style>
+</head>
+<body>
+  <h1>TR Dependency Analyser — Eclipse Update Site</h1>
+  <p>Eclipse ADT plugin + ABAP backend that detects cross-task and cross-TR
+  object dependencies in SAP transports, recommending a safe DEV → QA → PROD
+  release order.</p>
+
+  <h2>Install in Eclipse — paste this URL</h2>
+  <p class="url"><code>https://mayur175.github.io/tr-dependency-analyser/</code></p>
+
+  <div class="step">
+    <strong>Step 1.</strong> In Eclipse / ADT, choose
+    <em>Help → Install New Software…</em>
+  </div>
+  <div class="step">
+    <strong>Step 2.</strong> Click <em>Add…</em> and paste the URL above
+    into the <em>Location</em> field. Give it a friendly name
+    (e.g. <em>TR Dependency Analyser</em>) and click <em>Add</em>.
+  </div>
+  <div class="step">
+    <strong>Step 3.</strong> Tick <em>TR Analyser for ADT</em> in the list,
+    click <em>Next</em>, accept the licence, click <em>Finish</em>, restart
+    Eclipse.
+  </div>
+  <div class="step">
+    <strong>Step 4.</strong> Configure your SAP system in
+    <em>Window → Preferences → TR Analyser</em>, click
+    <em>Test Connection</em>.
+  </div>
+
+  <h2>Source code &amp; documentation</h2>
+  <p><a href="https://github.com/Mayur175/tr-dependency-analyser">github.com/Mayur175/tr-dependency-analyser</a></p>
+  <p>Read these in order if you're new to the project:</p>
+  <ul>
+    <li><code>README.md</code> — overview</li>
+    <li><code>NEXT_STEPS.md</code> — plain-English walkthrough</li>
+    <li><code>RELEASE_PLAYBOOK.md</code> — sequenced rollout plan</li>
+    <li><code>ARCHITECT_REVIEW.md</code> — SAP / Python / Java review with
+        defect list</li>
+  </ul>
+
+  <h2>Backend (ABAP) install</h2>
+  <p>The Eclipse plugin calls an ICF service on your SAP system. Install the
+  ABAP backend via abapGit — instructions are in
+  <a href="https://github.com/Mayur175/tr-dependency-analyser/blob/main/abap/INSTALL_VIA_ABAPGIT.md">abap/INSTALL_VIA_ABAPGIT.md</a>.</p>
+</body>
+</html>

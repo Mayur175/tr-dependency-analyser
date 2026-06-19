@@ -6,6 +6,18 @@ If you are on Private Cloud or on-prem, use [`../manual_install/`](../manual_ins
 
 The same repo holds both variants; you install **one or the other**, never both.
 
+> ## ⚠️ Do NOT install classic objects on a Public Cloud tenant
+>
+> The classic `manual_install/` folder contains four objects that **will not activate** on Public Cloud:
+>
+> - `ZCL_GCTS_TR_ANALYZER`         (uses E070/E071/DD03L/SEOMETAREL)
+> - `ZGCTS_ANALYZE_HANDLER`        (uses `IF_HTTP_EXTENSION`, no SICF in cloud)
+> - `ZCL_GCTS_DEP_ATC_CHECK`       (inherits `CL_CI_TEST_OBJECT`)
+> - their `*.locals` includes
+>
+> If you see an error like `Type "ZCL_GCTS_TR_ANALYZER" is unknown` on the cloud tenant, that means a classic class is being referenced. **Delete the classic objects** (any class name without the `_CLOUD` suffix) and install only the four objects listed in the table below. The cloud variant uses suffixed names (`_CLOUD`) precisely so the two cannot collide if a system briefly has both.
+>
+
 ---
 
 ## Why a separate folder?

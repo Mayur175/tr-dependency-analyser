@@ -6,14 +6,8 @@
 "! Register this class as an ATC check via:
 "!   ATC > Check Variant > Custom Checks > Add ZCL_GCTS_DEP_ATC_CHK_CLOUD
 "!
-"! Unlike the classic check (which inherits CL_CI_TEST_OBJECT), this one
-"! uses the cloud-released base class CL_CI_TEST_ROOT and the released
-"! result-collection API CL_CI_RESULT_ROOT. Both are part of the ATC
-"! cloud SDK and pass the strict allow-list.
-"!
-"! Inputs: triggered automatically by ATC when the user runs a check on
-"! a transport. We pull the TR id from the ATC context and feed it to
-"! the analyser; one ATC finding per dependency above MEDIUM risk.
+"! Inherits CL_CI_TEST_ROOT (the cloud-released ATC base class) instead
+"! of the classic CL_CI_TEST_OBJECT, which is not on the cloud allow-list.
 CLASS zcl_gcts_dep_atc_chk_cloud DEFINITION
   PUBLIC
   INHERITING FROM cl_ci_test_root
@@ -44,27 +38,23 @@ CLASS zcl_gcts_dep_atc_chk_cloud IMPLEMENTATION.
   METHOD constructor.
     super->constructor( ).
 
-    " Description and category for the ATC framework
     description = `TR Analyser - cross-task dependency check (cloud)`.
     category    = `ZGCTS_CLOUD`.
     version     = '0001'.
 
-    " Define each finding code so ATC's UI knows the severity defaults.
-    DATA(ls_msg_dep) = VALUE scimessage(
+    APPEND VALUE scimessage(
       test     = me->myname
       code     = c_check_code_dep
       kind     = c_warning
       pcom     = ''
-      pcom_lng = '' ).
-    APPEND ls_msg_dep TO scimessages.
+      pcom_lng = '' ) TO scimessages.
 
-    DATA(ls_msg_ext) = VALUE scimessage(
+    APPEND VALUE scimessage(
       test     = me->myname
       code     = c_check_code_ext
       kind     = c_error
       pcom     = ''
-      pcom_lng = '' ).
-    APPEND ls_msg_ext TO scimessages.
+      pcom_lng = '' ) TO scimessages.
   ENDMETHOD.
 
 
@@ -80,47 +70,30 @@ CLASS zcl_gcts_dep_atc_chk_cloud IMPLEMENTATION.
 
     TRY.
         DATA(lo_an) = NEW zcl_gcts_tr_analyzer_cloud(
-          it_input            = VALUE #( ( id = lv_tr_id ) )
-          iv_include_external = abap_true ).
+                       it_input            = VALUE #( ( id = lv_tr_id ) )
+                       iv_include_external = abap_true ).
         lo_an->run( ).
 
-        " The analyzer's deps are exposed via to_json; for ATC we want
-        " typed access. Re-use the public CSV API and parse, OR (preferred)
-        " add a public getter for mt_deps in a future revision.
-        DATA(lv_csv) = lo_an->to_csv( ).
+        " Typed access to the dep table - no fragile CSV parsing.
+        DATA(lt_deps) = lo_an->get_deps( ).
 
-        " Emit a finding per CSV row that has a HIGH/CRITICAL risk.
-        SPLIT lv_csv AT cl_abap_char_utilities=>newline INTO TABLE DATA(lt_lines).
-        LOOP AT lt_lines INTO DATA(lv_line) FROM 2.   " skip header
-          IF lv_line IS INITIAL.
-            CONTINUE.
-          ENDIF.
-
-          SPLIT lv_line AT ',' INTO TABLE DATA(lt_cols).
-          IF lines( lt_cols ) < 7.
-            CONTINUE.
-          ENDIF.
-
-          DATA(lv_kind) = lt_cols[ 5 ].
-          DATA(lv_risk) = lt_cols[ 7 ].
-          DATA(lv_src)  = lt_cols[ 2 ].
-          DATA(lv_tgt)  = lt_cols[ 4 ].
-
-          CASE lv_risk.
+        LOOP AT lt_deps INTO DATA(ls_dep).
+          CASE ls_dep-risk.
             WHEN 'CRITICAL' OR 'HIGH'.
               raise_finding(
                 iv_code     = c_check_code_ext
                 iv_severity = c_error
-                iv_text     = |{ lv_src } { lv_kind } { lv_tgt } (risk: { lv_risk })| ).
+                iv_text     = |{ ls_dep-source_object } { ls_dep-kind } |
+                           && |{ ls_dep-target_object } (risk: { ls_dep-risk })| ).
             WHEN 'MEDIUM'.
               raise_finding(
                 iv_code     = c_check_code_dep
                 iv_severity = c_warning
-                iv_text     = |{ lv_src } { lv_kind } { lv_tgt } (risk: { lv_risk })| ).
+                iv_text     = |{ ls_dep-source_object } { ls_dep-kind } |
+                           && |{ ls_dep-target_object } (risk: { ls_dep-risk })| ).
             WHEN OTHERS.
-              " no finding for NONE
+              " no finding for NONE / INVENTORIED rows
           ENDCASE.
-
         ENDLOOP.
 
       CATCH cx_root INTO DATA(lo_ex).

@@ -4,20 +4,19 @@
 "! confirmed-released for ABAP for Cloud Development:
 "!
 "!   - cl_abap_context_info=>get_system_date / get_system_time
-"!   - cl_http_destination_provider=>create_by_destination
-"!   - cl_web_http_client_manager=>create_by_http_destination
-"!   - if_web_http_client / if_web_http_request / if_web_http_response
-"!   - cl_abap_char_utilities=>newline
+"!   - cl_abap_char_utilities=>newline / cr_lf
 "!   - Standard OpenSQL with @-escaped host vars
 "!   - Custom Z-table ZGCTS_HIST (always allowed in cloud)
 "!
-"! Deliberately NOT used:
-"!   - XCO repository / dictionary traversal (content struct shapes
-"!     vary by BTP ABAP Environment SP level; we don't ship code that
-"!     compiles on one tenant and not another).
-"!   - xco_cp_json (we hand-roll JSON for full predictability).
-"!   - cl_demo_output (not on the cloud allow-list).
-"!   - Direct E070 / E071 / DD03L / SEOMETAREL / TFDIR reads (blocked).
+"! Deliberately NOT used in the MVP:
+"!   - XCO repository / dictionary traversal
+"!   - xco_cp_json
+"!   - cl_demo_output
+"!   - Outbound HTTP via cl_http_destination_provider / cl_web_http_client_manager
+"!     (factory-method parameter names vary by BTP ABAP Environment SP level;
+"!      the MVP does not call out to gCTS REST. Stage 1 simply records the
+"!      input ids as inventory; deeper transport-content reads are a per-tenant
+"!      extension once the customer has verified the right factory signature.)
 "!
 "! Public surface mirrors the classic analyser so the Eclipse plugin
 "! works against either backend without code changes.
@@ -64,7 +63,8 @@ CLASS zcl_gcts_tr_analyzer_cloud DEFINITION
       c_risk_medium   TYPE string VALUE 'MEDIUM',
       c_risk_none     TYPE string VALUE 'NONE'.
 
-    "! One repository object pulled from gCTS for an input commit.
+    "! One repository object that we know about (from input or from a
+    "! per-tenant gCTS extension once added).
     TYPES: BEGIN OF ty_object,
              task_id  TYPE string,
              pgmid    TYPE string,
@@ -84,24 +84,15 @@ CLASS zcl_gcts_tr_analyzer_cloud DEFINITION
     METHODS out
       IMPORTING iv_text TYPE string.
 
-    METHODS stage1_inventory_via_gcts.
+    METHODS stage1_inventory_from_input.
     METHODS stage2_inventory_to_deps.
 
     METHODS add_dep
       IMPORTING is_dep TYPE ty_dep.
 
-    METHODS read_gcts_commit_objects
-      IMPORTING iv_commit_id  TYPE string
-      RETURNING VALUE(rt_obj) TYPE tt_objects.
-
     METHODS json_escape
-      IMPORTING iv_value         TYPE string
+      IMPORTING iv_value          TYPE string
       RETURNING VALUE(rv_escaped) TYPE string.
-
-    METHODS extract_objects_from_json
-      IMPORTING iv_body       TYPE string
-                iv_commit_id  TYPE string
-      RETURNING VALUE(rt_obj) TYPE tt_objects.
 
 ENDCLASS.
 
@@ -138,7 +129,7 @@ CLASS zcl_gcts_tr_analyzer_cloud IMPLEMENTATION.
 
     out( |TR Analyser (cloud) starting for input: { mv_label }| ).
 
-    stage1_inventory_via_gcts( ).
+    stage1_inventory_from_input( ).
     stage2_inventory_to_deps( ).
 
     out( |Done. Found { lines( mt_objects ) } objects, |
@@ -149,16 +140,24 @@ CLASS zcl_gcts_tr_analyzer_cloud IMPLEMENTATION.
   ENDMETHOD.
 
 
-  METHOD stage1_inventory_via_gcts.
+  METHOD stage1_inventory_from_input.
 
-    " Pull repository objects from gCTS for every input id.
+    " MVP: each input id becomes one inventory row of unknown type.
+    " A per-tenant extension can replace this with an outbound gCTS REST
+    " call once the customer verifies the correct factory-method
+    " signature for cl_http_destination_provider on their BTP ABAP
+    " Environment SP level (parameter names vary across releases).
     LOOP AT mt_input INTO DATA(ls_in).
       IF ls_in-id IS INITIAL.
         CONTINUE.
       ENDIF.
 
-      DATA(lt_obj) = read_gcts_commit_objects( CONV #( ls_in-id ) ).
-      APPEND LINES OF lt_obj TO mt_objects.
+      APPEND VALUE #(
+        task_id  = CONV string( ls_in-id )
+        pgmid    = `R3TR`
+        obj_type = `UNKNOWN`
+        obj_name = CONV string( ls_in-id )
+      ) TO mt_objects.
     ENDLOOP.
 
   ENDMETHOD.
@@ -166,19 +165,11 @@ CLASS zcl_gcts_tr_analyzer_cloud IMPLEMENTATION.
 
   METHOD stage2_inventory_to_deps.
 
-    " The cloud variant emits one INVENTORIED dependency row per object
-    " found in the gCTS inventory. This guarantees the analyser produces
-    " a useful, persistable result on every cloud tenant.
-    "
-    " Deeper dependency walking (class superclass / interfaces, function
-    " group expansion, DDIC where-used) requires XCO API calls whose
-    " content-struct shapes vary across BTP ABAP Environment SP levels.
-    " Rather than ship code that activates on one tenant and breaks on
-    " another, the cloud variant treats stage 2 as a customer extension
-    " point. See abap_cloud/README_CLOUD.md "Roadmap" for the recommended
-    " XCO call patterns - they should be added against the customer's
-    " specific tenant's XCO version, not blind-coded.
-
+    " Emit one INVENTORIED dependency row per object found in stage 1.
+    " Deeper dependency walking (class superclass / interfaces, FUGR
+    " expansion, DDIC where-used) is documented as a per-tenant
+    " extension because the XCO content-struct shapes vary across
+    " BTP ABAP Environment SP levels.
     LOOP AT mt_objects INTO DATA(ls_obj).
       add_dep( VALUE #(
         source_task   = ls_obj-task_id
@@ -209,101 +200,6 @@ CLASS zcl_gcts_tr_analyzer_cloud IMPLEMENTATION.
   ENDMETHOD.
 
 
-  METHOD read_gcts_commit_objects.
-
-    " Reads /sap/bc/cts_abapvcs/repository/<repo>/commits/<id>/objects
-    " via a customer-configured HTTP destination called 'GCTS_LOCAL'.
-    " If the destination doesn't exist or the call fails, the method
-    " returns an empty table and logs the reason - run() then degrades
-    " to "no objects found" rather than crashing.
-    "
-    " The GCTS_LOCAL destination is set up once per tenant via a
-    " Communication Arrangement / Destination Service. See
-    " manual_install_cloud/README.md section "Set up the gCTS destination".
-
-    DATA(lv_repo) = `tr-dependency-analyser`.
-
-    TRY.
-        DATA(lo_dest) = cl_http_destination_provider=>create_by_destination(
-                          i_name = 'GCTS_LOCAL' ).
-
-        DATA(lo_client) = cl_web_http_client_manager=>create_by_http_destination(
-                            i_destination = lo_dest ).
-
-        DATA(lo_request) = lo_client->get_http_request( ).
-        lo_request->set_uri_path( i_uri_path =
-          |/sap/bc/cts_abapvcs/repository/{ lv_repo }/commits/{ iv_commit_id }/objects| ).
-        lo_request->set_header_field( i_name  = 'Accept'
-                                      i_value = 'application/json' ).
-
-        DATA(lo_response) = lo_client->execute(
-                              i_method = if_web_http_client=>get ).
-
-        DATA(lv_status) = lo_response->get_status( )-code.
-        DATA(lv_body)   = lo_response->get_text( ).
-
-        IF lv_status >= 400.
-          out( |gCTS HTTP { lv_status } for { iv_commit_id }| ).
-          RETURN.
-        ENDIF.
-
-        rt_obj = extract_objects_from_json( iv_body      = lv_body
-                                            iv_commit_id = iv_commit_id ).
-
-      CATCH cx_root INTO DATA(lo_ex).
-        out( |gCTS REST call failed for { iv_commit_id }: { lo_ex->get_text( ) }| ).
-    ENDTRY.
-
-  ENDMETHOD.
-
-
-  METHOD extract_objects_from_json.
-
-    " Hand-rolled, defensive JSON object extractor. Looks for triplets of
-    "   "pgmid":"X","object":"Y","name":"Z"
-    " inside the response body. This avoids depending on JSON library
-    " shapes that may differ across cloud SP levels.
-    "
-    " gCTS response shape:
-    "   { "objects": [
-    "     { "pgmid":"R3TR", "object":"CLAS", "name":"ZCL_X" }, ...
-    "   ] }
-
-    DATA(lv_rest) = iv_body.
-
-    DO.
-      FIND FIRST OCCURRENCE OF REGEX
-        `"pgmid"\s*:\s*"([^"]*)"\s*,\s*"object"\s*:\s*"([^"]*)"\s*,\s*"name"\s*:\s*"([^"]*)"`
-        IN lv_rest
-        SUBMATCHES DATA(lv_pgmid) DATA(lv_object) DATA(lv_name).
-
-      IF sy-subrc <> 0.
-        EXIT.
-      ENDIF.
-
-      APPEND VALUE #(
-        task_id  = CONV #( iv_commit_id )
-        pgmid    = lv_pgmid
-        obj_type = lv_object
-        obj_name = lv_name ) TO rt_obj.
-
-      " Move past this match to find the next triplet.
-      DATA(lv_idx) = find( val = lv_rest sub = lv_name ).
-      IF lv_idx < 0.
-        EXIT.
-      ENDIF.
-      lv_rest = lv_rest+lv_idx.
-      lv_idx  = find( val = lv_rest sub = `"` ).
-      IF lv_idx < 0.
-        EXIT.
-      ENDIF.
-      lv_rest = lv_rest+lv_idx.
-      lv_rest = lv_rest+1.
-    ENDDO.
-
-  ENDMETHOD.
-
-
   METHOD out.
     IF mv_log IS INITIAL.
       mv_log = iv_text.
@@ -325,8 +221,7 @@ CLASS zcl_gcts_tr_analyzer_cloud IMPLEMENTATION.
 
   METHOD json_escape.
 
-    " Minimal JSON string escaping. Handles the four characters that
-    " MUST be escaped per RFC 8259 inside a string literal.
+    " Minimal JSON string escaping per RFC 8259 inside string literals.
     rv_escaped = iv_value.
     REPLACE ALL OCCURRENCES OF `\` IN rv_escaped WITH `\\`.
     REPLACE ALL OCCURRENCES OF `"` IN rv_escaped WITH `\"`.
@@ -342,7 +237,7 @@ CLASS zcl_gcts_tr_analyzer_cloud IMPLEMENTATION.
 
     " Hand-rolled JSON. Produces:
     "   {"label":"...","objectCount":N,"depCount":M,"deps":[ ... ]}
-    DATA lv_deps TYPE string.
+    DATA lv_deps  TYPE string.
     DATA lv_first TYPE abap_bool VALUE abap_true.
 
     LOOP AT mt_deps INTO DATA(ls).
@@ -392,13 +287,12 @@ CLASS zcl_gcts_tr_analyzer_cloud IMPLEMENTATION.
   METHOD persist_result.
 
     " ZGCTS_HIST is a customer Z-table; custom Z-tables are always
-    " allowed in cloud (only SAP-internal tables are on the deny-list).
-    " Field names match the DDIC definition exactly:
+    " allowed in cloud. Field names match the DDIC definition exactly:
     "   tr_id, run_ts, src_task, src_obj, tgt_task, tgt_obj,
     "   kind, risk, detail, pull_step, pull_action.
     "
-    " Timestamp is built from cl_abap_context_info to match the classic
-    " analyser's persistence format (date * 1000000 + time, type DEC15).
+    " Timestamp matches the classic analyser's format
+    " (date * 1000000 + time, type DEC15).
 
     DATA lv_date TYPE d.
     DATA lv_time TYPE t.

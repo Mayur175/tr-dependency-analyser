@@ -286,7 +286,11 @@ CLASS zgcts_analyze_handler IMPLEMENTATION.
 
 
   METHOD error_json.
-    rv_out = |{"error":"{ escape_json_str( iv_msg ) }"}|.
+    " Use string concatenation rather than a string template here. The literal
+    " JSON braces { and } would otherwise have to be escaped (\{ \}) inside a
+    " |...| template, which the ABAP parser flags as
+    "   "Expression limiter '{' in string template not followed by space."
+    rv_out = `{"error":"` && escape_json_str( iv_msg ) && `"}`.
   ENDMETHOD.
 
 

@@ -1,11 +1,15 @@
 # How to push future changes to GitHub
 
-This project is **already** a Git repository. I confirmed it just now:
+This project is **already** a Git repository. Three remotes are configured:
 
-- **Branch:** `main`
-- **Two remotes are configured:**
-  - `origin` → `https://github.tools.sap/I763161/gcts-analyzer.git`  *(SAP-internal GitHub)*
-  - `github` → `https://github.com/Mayur175/tr-analyser.git`  *(public GitHub)*
+| Name | URL | Purpose |
+|---|---|---|
+| `origin` | `https://github.tools.sap/I763161/gcts-analyzer.git` | SAP-internal GitHub (work-in-progress) |
+| `github` | `https://github.com/Mayur175/tr-analyser.git` | Older public repo (legacy) |
+| `tr-dep` | `https://github.com/Mayur175/tr-dependency-analyser.git` | **Current public repo** — this is where the cleaned-up code lives |
+
+The branch is `main`. Use `tr-dep` for new public pushes; `github` is kept
+for historical reference only.
 
 So you don't need to set anything up from scratch. You just need to know
 the daily workflow.
@@ -33,7 +37,8 @@ git commit -m "Short description of what changed"
 
 # 4. Push to the remote(s) you want
 git push origin main           # SAP-internal
-git push github main           # public
+git push tr-dep main           # public  (current)
+# git push github main         # legacy public repo - usually skip
 ```
 
 That's it. You can push to one remote, the other, or both — they're
@@ -58,7 +63,7 @@ git commit -m "Add architect review, mock SAP simulation, release playbook"
 
 # Push to both remotes
 git push origin main
-git push github main
+git push tr-dep main
 ```
 
 If you're unsure what's staged, run `git diff --cached` first — it shows
@@ -104,7 +109,7 @@ cd "TR dependency"
 git add abap/src/zgcts_analyze_handler.clas.abap
 git commit -m "Make AUTHORITY-CHECK optional via class constant"
 git push origin main
-git push github main
+git push tr-dep main
 ```
 
 ### B. "I made many changes across ABAP, Java, and docs"
@@ -115,7 +120,7 @@ git status                   # review the list first
 git add -A                   # stage every change
 git commit -m "Cross-TR support: Java client + ABAP handler + tests"
 git push origin main
-git push github main
+git push tr-dep main
 ```
 
 ### C. "I want to undo my last commit (not yet pushed)"
@@ -136,7 +141,7 @@ git push origin main
 ### E. "I want to push to the public GitHub but NOT the SAP-internal one"
 
 ```bash
-git push github main         # only the public remote
+git push tr-dep main         # only the public remote
 ```
 
 ### F. "I want to see the history of a file"
@@ -154,7 +159,7 @@ Both remotes use HTTPS. The first `git push` will prompt for credentials:
 | Remote | What you enter |
 |---|---|
 | `origin` (`github.tools.sap`) | Your SAP I-number (e.g. `I763161`) and a **Personal Access Token** generated at <https://github.tools.sap/settings/tokens>. NOT your network password. |
-| `github` (`github.com`) | Your public GitHub username and a **Personal Access Token** generated at <https://github.com/settings/tokens>. |
+| `tr-dep` (`github.com`) | Your public GitHub username and a **Personal Access Token** generated at <https://github.com/settings/tokens>. |
 
 To avoid typing the token every time, install the **Git Credential
 Manager** (already on macOS by default if you installed Git via `brew` or
@@ -165,7 +170,7 @@ Quick test that auth works:
 
 ```bash
 git ls-remote origin
-git ls-remote github
+git ls-remote tr-dep
 ```
 
 Both should print a list of branches without prompting (after the first
@@ -219,7 +224,7 @@ This project pushes to both an internal (`github.tools.sap`) and a public
   documentation, generic ABAP code, the Eclipse plugin source.
 
 **Be careful not to push internal-only content to the public remote.**
-Before any `git push github main`, scan for accidental leaks:
+Before any `git push tr-dep main`, scan for accidental leaks:
 
 ```bash
 # Dry-run search for anything that looks internal
@@ -242,7 +247,7 @@ git tag -a v1.0.0 -m "TR Analyser v1.0.0 - first public release"
 
 # Push the tag (separately from branches)
 git push origin v1.0.0
-git push github v1.0.0
+git push tr-dep v1.0.0
 ```
 
 GitHub then automatically creates a "Release" page from the tag, which is

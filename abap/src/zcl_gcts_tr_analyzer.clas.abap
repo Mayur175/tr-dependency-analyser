@@ -1,32 +1,49 @@
-"! gCTS Task Dependency Analyzer — 4-stage XCO analysis pipeline.
+"! TR Analyser - cross-task / cross-TR dependency pipeline.
 "!
-"! Usage (F9 / ICF):
+"! Inputs: one or more TR or task ids.
+"!   - TR id   -> all child tasks (E070-STRKORR = TR) are expanded automatically.
+"!   - Task id -> just that task.
+"!
+"! Usage (instance-safe; no static state):
+"!   DATA(lo) = NEW zcl_gcts_tr_analyzer( it_input            = VALUE #( ( id = 'GMWK900691' ) )
+"!                                          iv_include_external = abap_false ).
+"!   DATA(lv_json) = lo->to_json( ).
+"!   DATA(lv_csv)  = lo->to_csv( ).
+"!   lo->persist_result( ).
+"!
+"! Backwards-compatible legacy path (deprecated, will be removed in v2):
 "!   ZCL_GCTS_TR_ANALYZER=>GV_TR_ID = 'GMWK900691'.
-"!   DATA(lo) = NEW zcl_gcts_tr_analyzer( ).
-"!   DATA(lv_json) = lo->to_json( ).      " for ICF handler
-"!   DATA(lv_csv)  = lo->to_csv( ).       " for CSV export
-"!   lo->persist_result( ).               " write to ZGCTS_DEP_HISTORY
+"!   NEW zcl_gcts_tr_analyzer( ).
+"!   -> internally maps to it_input = (( id = GV_TR_ID )).
 CLASS zcl_gcts_tr_analyzer DEFINITION
   PUBLIC FINAL CREATE PUBLIC.
 
   PUBLIC SECTION.
-    "! TR number — set before instantiation (static input)
+
+    "! Public input row - one TR or task id per row
+    TYPES: BEGIN OF ty_input,
+             id TYPE trkorr,
+           END OF ty_input.
+    TYPES tt_input TYPE STANDARD TABLE OF ty_input WITH EMPTY KEY.
+
+    "! Deprecated - use the new constructor instead. Kept only so existing
+    "! callers (the original ICF handler / F9 scripts) continue to compile.
     CLASS-DATA gv_tr_id TYPE string.
 
-    "! When TRUE, also report objects that depend on items outside the TR
+    "! Deprecated - same reason as gv_tr_id.
     CLASS-DATA gv_include_external TYPE abap_bool VALUE abap_false.
 
-    METHODS constructor.
+    "! Modern instance-based constructor (preferred).
+    "!
+    "! @parameter it_input            | one row per TR or task id to analyse
+    "! @parameter iv_include_external | when ABAP_TRUE, also report objects
+    "!                                   that depend on items outside the input set
+    METHODS constructor
+      IMPORTING it_input            TYPE tt_input            OPTIONAL
+                iv_include_external TYPE abap_bool DEFAULT abap_false.
 
-    "! Serialise analysis result as JSON for ICF response
-    METHODS to_json
-      RETURNING VALUE(rv_json) TYPE string.
-
-    "! Serialise analysis result as CSV for download / Excel
-    METHODS to_csv
-      RETURNING VALUE(rv_csv) TYPE string.
-
-    "! Persist result rows to ZGCTS_DEP_HISTORY
+    METHODS to_json     RETURNING VALUE(rv_json) TYPE string.
+    METHODS to_csv      RETURNING VALUE(rv_csv)  TYPE string.
     METHODS persist_result.
 
   PRIVATE SECTION.
@@ -67,12 +84,25 @@ CLASS zcl_gcts_tr_analyzer DEFINITION
            END OF ty_cluster.
     TYPES tt_clusters TYPE STANDARD TABLE OF ty_cluster WITH EMPTY KEY.
 
-    DATA mv_tr       TYPE string.
+    "! Header label for the to_json / cl_demo_output output. Built from
+    "! the input set: single id -> the id, multiple ids -> "id1,id2,..." .
+    DATA mv_label TYPE string.
+
+    "! Resolved input - one row per task id we are going to scan.
+    "! Built from it_input: each TR id is expanded to its tasks via E070,
+    "! and bare task ids are passed through as-is.
+    DATA mt_tasks TYPE STANDARD TABLE OF trkorr WITH EMPTY KEY.
+
+    DATA mv_include_external TYPE abap_bool.
+
     DATA mt_objects  TYPE tt_objects.
     DATA mt_deps     TYPE tt_deps.
     DATA mt_clusters TYPE tt_clusters.
 
-    METHODS stage1_inventory      IMPORTING iv_tr TYPE string.
+    METHODS resolve_input
+      IMPORTING it_input TYPE tt_input.
+
+    METHODS stage1_inventory.
     METHODS stage2_dependencies.
     METHODS stage2b_conflicts.
     METHODS stage3_clusters.
@@ -143,16 +173,34 @@ ENDCLASS.
 
 CLASS zcl_gcts_tr_analyzer IMPLEMENTATION.
 
-" ═════════════════════════════════════════════════════════════════════════════
+" =============================================================================
 " CONSTRUCTOR
-" ═════════════════════════════════════════════════════════════════════════════
+" Accepts either the new it_input table or the legacy gv_tr_id static.
+" =============================================================================
   METHOD constructor.
-    mv_tr = gv_tr_id.
-    IF mv_tr IS INITIAL.
-      out( '*** ZCL_GCTS_TR_ANALYZER: set GV_TR_ID before instantiating ***' ).
+
+    DATA lt_input TYPE tt_input.
+
+    IF it_input IS NOT INITIAL.
+      lt_input            = it_input.
+      mv_include_external = iv_include_external.
+    ELSEIF gv_tr_id IS NOT INITIAL.
+      " Legacy path - keeps existing ICF handler / F9 callers working.
+      APPEND VALUE #( id = CONV trkorr( gv_tr_id ) ) TO lt_input.
+      mv_include_external = gv_include_external.
+    ELSE.
+      out( '*** TR Analyser: provide it_input, or set gv_tr_id (deprecated) ***' ).
       RETURN.
     ENDIF.
-    stage1_inventory( mv_tr ).
+
+    resolve_input( lt_input ).
+
+    IF mt_tasks IS INITIAL.
+      out( |No tasks resolved from input { mv_label }| ).
+      RETURN.
+    ENDIF.
+
+    stage1_inventory( ).
     stage2_dependencies( ).
     stage2b_conflicts( ).
     stage3_clusters( ).
@@ -160,26 +208,68 @@ CLASS zcl_gcts_tr_analyzer IMPLEMENTATION.
   ENDMETHOD.
 
 
-" ═════════════════════════════════════════════════════════════════════════════
-" STAGE 1 — Task Inventory
-" Uses CTS tables E070/E071 directly — reliable, no XCO API uncertainty.
-"   E070: Transport/Task header — STRKORR = parent TR identifies tasks
-"   E071: Object entries per transport/task
-" ═════════════════════════════════════════════════════════════════════════════
+" =============================================================================
+" RESOLVE_INPUT
+" Each input id is checked against E070:
+"   - If it has child tasks (other rows whose STRKORR = id) -> expand to children.
+"   - Otherwise treat the id itself as a single task.
+" Builds:
+"   mt_tasks  - flat list of task TRKORRs to scan
+"   mv_label  - human-readable input description for headers / JSON
+" =============================================================================
+  METHOD resolve_input.
+
+    DATA lt_label_parts TYPE string_table.
+
+    LOOP AT it_input INTO DATA(ls_in).
+      DATA(lv_id) = ls_in-id.
+      IF lv_id IS INITIAL. CONTINUE. ENDIF.
+
+      APPEND CONV string( lv_id ) TO lt_label_parts.
+
+      " Children of this id (treat lv_id as a TR)
+      DATA lt_children TYPE STANDARD TABLE OF trkorr WITH EMPTY KEY.
+      SELECT trkorr FROM e070
+        WHERE strkorr = @lv_id
+        INTO TABLE @lt_children.
+
+      IF lt_children IS NOT INITIAL.
+        " It is a TR - expand to its tasks
+        LOOP AT lt_children INTO DATA(lv_child).
+          IF NOT line_exists( mt_tasks[ table_line = lv_child ] ).
+            APPEND lv_child TO mt_tasks.
+          ENDIF.
+        ENDLOOP.
+      ELSE.
+        " Treat as a task id directly
+        IF NOT line_exists( mt_tasks[ table_line = lv_id ] ).
+          APPEND lv_id TO mt_tasks.
+        ENDIF.
+      ENDIF.
+    ENDLOOP.
+
+    mv_label = concat_lines_of( table = lt_label_parts sep = `,` ).
+  ENDMETHOD.
+
+
+" =============================================================================
+" STAGE 1 - Task Inventory
+" Reads E071 directly for every task in mt_tasks. Works on every release of
+" SAP NetWeaver / S/4HANA since R/3 4.6C, regardless of XCO availability.
+" =============================================================================
   METHOD stage1_inventory.
 
-    " Read all objects from tasks of this TR in one join
-    SELECT e071~trkorr AS task_id,
-           e071~pgmid  AS pgmid,
-           e071~object AS object,
-           e071~obj_name AS obj_name
+    SELECT trkorr   AS task_id,
+           pgmid    AS pgmid,
+           object   AS object,
+           obj_name AS obj_name
       FROM e071
-      INNER JOIN e070 ON e070~trkorr = e071~trkorr
-      WHERE e070~strkorr = @iv_tr
+      FOR ALL ENTRIES IN @mt_tasks
+      WHERE trkorr = @mt_tasks-table_line
       INTO TABLE @DATA(lt_raw).
 
     IF sy-subrc <> 0 OR lt_raw IS INITIAL.
-      out( |TR { iv_tr }: no objects found in tasks (verify TR exists in SE09)| ).
+      out( |Input { mv_label }: no objects found in any task (verify ids in SE09)| ).
       RETURN.
     ENDIF.
 
@@ -190,14 +280,14 @@ CLASS zcl_gcts_tr_analyzer IMPLEMENTATION.
         obj_name = CONV string( ls-obj_name ) ) TO mt_objects.
     ENDLOOP.
 
-    out( |Stage 1: { lines( mt_objects ) } objects collected from TR { iv_tr }| ).
+    out( |Stage 1: { lines( mt_objects ) } objects collected from { lines( mt_tasks ) } task(s)| ).
 
   ENDMETHOD.
 
 
-" ═════════════════════════════════════════════════════════════════════════════
-" STAGE 2 — Dependency Extraction
-" ═════════════════════════════════════════════════════════════════════════════
+" =============================================================================
+" STAGE 2 - Dependency Extraction (per object type)
+" =============================================================================
   METHOD stage2_dependencies.
     LOOP AT mt_objects INTO DATA(ls_obj).
       DATA(lv_type) = ls_obj-obj_type.
@@ -219,7 +309,6 @@ CLASS zcl_gcts_tr_analyzer IMPLEMENTATION.
 
 
   METHOD deps_for_clas.
-    " Use TYPE table-field to avoid guessing domain type names
     DATA: lv_clsname TYPE seometarel-clsname,
           lv_reltype TYPE seometarel-reltype,
           lv_super   TYPE seometarel-refclsname.
@@ -324,36 +413,37 @@ CLASS zcl_gcts_tr_analyzer IMPLEMENTATION.
 
 
   METHOD deps_for_ddls.
-    " CDS view source dependencies are complex to extract reliably across
-    " all system variants (DDLDEPENDENCY column names differ by release).
-    " CLAS/INTF/TABL dependencies cover the critical activation risks.
-    " CDS-to-CDS dependencies are lower risk and can be added once the
-    " exact table structure of this system is confirmed in SE11.
+    " CDS view dependencies require system-specific knowledge of the
+    " DDLDEPENDENCY table layout (column names changed across releases).
+    " Skipped here; handled by Phase 2 of the SOLUTION_ARCHITECTURE roadmap
+    " once the target release is confirmed in SE11.
     RETURN.
   ENDMETHOD.
 
 
   METHOD deps_for_ddlx.
-    " Metadata extension dependencies skipped — see deps_for_ddls note.
+    " Metadata extension dependencies skipped - see deps_for_ddls note.
     RETURN.
   ENDMETHOD.
 
 
   METHOD deps_for_bdef.
+    " RAP behavior definition dependencies require XCO_CP_BDL on systems
+    " where it is available; not yet implemented to avoid release coupling.
     RETURN.
   ENDMETHOD.
 
 
   METHOD deps_for_fugr.
-    " Use TFDIR (function module directory) to find FMs in this function group
-    " PNAME in TFDIR = function group name
+    " Use TFDIR (function module directory) to find FMs in this function group.
+    " PNAME in TFDIR = function group name.
     TRY.
         SELECT funcname FROM tfdir
           WHERE pname = @iv_name
           INTO TABLE @DATA(lt_fms).
 
         LOOP AT lt_fms INTO DATA(ls_fm).
-          DATA(lv_fm_name) = CONV string( ls_fm-funcname ).
+          DATA(lv_fm_name)  = CONV string( ls_fm-funcname ).
           DATA(lv_tgt_task) = task_of_object( lv_fm_name ).
           add_dep( iv_src_task = iv_task  iv_src_obj = |FUGR/{ iv_name }|
                    iv_tgt_task = lv_tgt_task
@@ -366,11 +456,10 @@ CLASS zcl_gcts_tr_analyzer IMPLEMENTATION.
   ENDMETHOD.
 
 
-" ═════════════════════════════════════════════════════════════════════════════
-" STAGE 2b — Same-Object Conflict Detection
-" ═════════════════════════════════════════════════════════════════════════════
+" =============================================================================
+" STAGE 2b - Same-Object Conflict Detection
+" =============================================================================
   METHOD stage2b_conflicts.
-    " Build a map: object name -> comma-separated list of owning tasks
     TYPES: BEGIN OF ty_obj_tasks,
              obj_name TYPE string,
              tasks    TYPE string,
@@ -388,11 +477,9 @@ CLASS zcl_gcts_tr_analyzer IMPLEMENTATION.
       ENDIF.
     ENDLOOP.
 
-    " Any object owned by more than one task = CONFLICT
     LOOP AT lt_map INTO DATA(ls_map).
       IF NOT ls_map-tasks CA ','. CONTINUE. ENDIF.
 
-      " Split comma-separated tasks manually (no local class dependency)
       DATA lt_task_list TYPE string_table.
       SPLIT ls_map-tasks AT ',' INTO TABLE lt_task_list.
 
@@ -416,9 +503,9 @@ CLASS zcl_gcts_tr_analyzer IMPLEMENTATION.
   ENDMETHOD.
 
 
-" ═════════════════════════════════════════════════════════════════════════════
-" STAGE 3 — Cluster Detection (Union-Find)
-" ═════════════════════════════════════════════════════════════════════════════
+" =============================================================================
+" STAGE 3 - Cluster Detection (Union-Find)
+" =============================================================================
   METHOD stage3_clusters.
     DATA lt_uf TYPE tt_uf.
 
@@ -497,9 +584,9 @@ CLASS zcl_gcts_tr_analyzer IMPLEMENTATION.
   ENDMETHOD.
 
 
-" ═════════════════════════════════════════════════════════════════════════════
-" STAGE 4 — Console Output
-" ═════════════════════════════════════════════════════════════════════════════
+" =============================================================================
+" STAGE 4 - Console Output (cl_demo_output)
+" =============================================================================
   METHOD stage4_output.
     DATA lt_unique_tasks TYPE SORTED TABLE OF string WITH UNIQUE KEY table_line.
     LOOP AT mt_objects INTO DATA(ls_o).
@@ -507,7 +594,7 @@ CLASS zcl_gcts_tr_analyzer IMPLEMENTATION.
     ENDLOOP.
 
     out_header( ).
-    out( |  TR: { mv_tr }  Tasks: { lines( lt_unique_tasks ) }  Objects: { lines( mt_objects ) }  Edges: { lines( mt_deps ) }| ).
+    out( |  Input: { mv_label }  Tasks: { lines( lt_unique_tasks ) }  Objects: { lines( mt_objects ) }  Edges: { lines( mt_deps ) }| ).
     out( '' ).
 
     DATA lv_step TYPE i VALUE 1.
@@ -550,26 +637,24 @@ CLASS zcl_gcts_tr_analyzer IMPLEMENTATION.
   ENDMETHOD.
 
 
-" ═════════════════════════════════════════════════════════════════════════════
+" =============================================================================
 " TO_JSON
-" ═════════════════════════════════════════════════════════════════════════════
+" =============================================================================
   METHOD to_json.
     DATA lt_unique_tasks TYPE SORTED TABLE OF string WITH UNIQUE KEY table_line.
     LOOP AT mt_objects INTO DATA(ls_o).
       INSERT ls_o-task_id INTO TABLE lt_unique_tasks.
     ENDLOOP.
 
-    DATA(lv_summary) = |"tr":"{ json_escape( mv_tr ) }",| &&
+    DATA(lv_summary) = |"tr":"{ json_escape( mv_label ) }",| &&
                        |"taskCount":{ lines( lt_unique_tasks ) },| &&
                        |"objectCount":{ lines( mt_objects ) },| &&
                        |"edgeCount":{ lines( mt_deps ) }|.
 
-    " Build clusters array
     DATA lv_clusters TYPE string.
     CLEAR lv_clusters.
 
     LOOP AT mt_clusters INTO DATA(ls_cl).
-      " Build tasks JSON array — CLEAR before each cluster iteration
       DATA lv_tasks_arr TYPE string.
       CLEAR lv_tasks_arr.
       DATA lt_tasks TYPE string_table.
@@ -580,7 +665,6 @@ CLASS zcl_gcts_tr_analyzer IMPLEMENTATION.
         lv_tasks_arr = lv_tasks_arr && |"{ json_escape( lv_tc ) }"|.
       ENDLOOP.
 
-      " Build edges JSON array — CLEAR before each cluster iteration
       DATA lv_edges_arr TYPE string.
       CLEAR lv_edges_arr.
       LOOP AT mt_deps INTO DATA(ls_dep).
@@ -606,13 +690,11 @@ CLASS zcl_gcts_tr_analyzer IMPLEMENTATION.
         `}`.
     ENDLOOP.
 
-    " Build pull order array
     DATA lv_pull_order TYPE string.
     CLEAR lv_pull_order.
     DATA lv_step TYPE i VALUE 1.
 
     LOOP AT mt_clusters INTO DATA(ls_step).
-      " Build step tasks array — CLEAR before each iteration
       DATA lv_step_tasks TYPE string.
       CLEAR lv_step_tasks.
       DATA lt_st TYPE string_table.
@@ -639,16 +721,16 @@ CLASS zcl_gcts_tr_analyzer IMPLEMENTATION.
       lv_step += 1.
     ENDLOOP.
 
-    rv_json = `{` && lv_summary &&
+    rv_json = `{"version":"1.1",` && lv_summary &&
               `,"clusters":[` && lv_clusters && `]` &&
               `,"pullOrder":[` && lv_pull_order && `]` &&
               `}`.
   ENDMETHOD.
 
 
-" ═════════════════════════════════════════════════════════════════════════════
+" =============================================================================
 " HELPERS
-" ═════════════════════════════════════════════════════════════════════════════
+" =============================================================================
   METHOD task_of_object.
     TRY.
         rv_task = mt_objects[ obj_name = iv_name ]-task_id.
@@ -671,7 +753,7 @@ CLASS zcl_gcts_tr_analyzer IMPLEMENTATION.
 
 
   METHOD add_external_dep.
-    IF gv_include_external = abap_false. RETURN. ENDIF.
+    IF mv_include_external = abap_false. RETURN. ENDIF.
     IF iv_src_task IS INITIAL. RETURN. ENDIF.
     APPEND VALUE #(
       source_task   = iv_src_task
@@ -730,7 +812,7 @@ CLASS zcl_gcts_tr_analyzer IMPLEMENTATION.
 
   METHOD out_header.
     out( '=================================================================' ).
-    out( |  gCTS Task Dependency Analyzer  -  TR { mv_tr }| ).
+    out( |  TR Analyser  -  Input: { mv_label }| ).
     out( '=================================================================' ).
   ENDMETHOD.
 
@@ -751,25 +833,24 @@ CLASS zcl_gcts_tr_analyzer IMPLEMENTATION.
   ENDMETHOD.
 
 
-" ═════════════════════════════════════════════════════════════════════════════
+" =============================================================================
 " TO_CSV
-" ═════════════════════════════════════════════════════════════════════════════
+" =============================================================================
   METHOD to_csv.
     DATA(lv_ts) = cl_abap_context_info=>get_system_date( ) &&
                   cl_abap_context_info=>get_system_time( ).
 
-    rv_csv = 'TR,RUN_TS,SRC_TASK,SRC_OBJ,TGT_TASK,TGT_OBJ,KIND,RISK,DETAIL,PULL_STEP,PULL_ACTION' &&
+    rv_csv = 'INPUT,RUN_TS,SRC_TASK,SRC_OBJ,TGT_TASK,TGT_OBJ,KIND,RISK,DETAIL,PULL_STEP,PULL_ACTION' &&
              cl_abap_char_utilities=>newline.
 
     LOOP AT mt_deps INTO DATA(ls_dep).
-      " Look up risk via helper — avoids invalid KEY+WHERE+CS syntax
       DATA(lv_risk)   = risk_of_task(         ls_dep-source_task ).
       DATA(lv_step)   = pull_step_of_task(    ls_dep-source_task ).
       DATA(lv_action) = pull_action_of_task(  ls_dep-source_task ).
 
       rv_csv = rv_csv &&
-               csv_esc( mv_tr )                    && ',' &&
-               csv_esc( lv_ts )                    && ',' &&
+               csv_esc( mv_label )                  && ',' &&
+               csv_esc( lv_ts )                     && ',' &&
                csv_esc( ls_dep-source_task )        && ',' &&
                csv_esc( ls_dep-source_object )      && ',' &&
                csv_esc( ls_dep-target_task )        && ',' &&
@@ -784,13 +865,12 @@ CLASS zcl_gcts_tr_analyzer IMPLEMENTATION.
   ENDMETHOD.
 
 
-" ═════════════════════════════════════════════════════════════════════════════
-" PERSIST_RESULT — write to ZGCTS_DEP_HISTORY
-" Note: create table ZGCTS_DEP_HISTORY first (see abap/zgcts_dep_history/)
-" ═════════════════════════════════════════════════════════════════════════════
+" =============================================================================
+" PERSIST_RESULT - write to ZGCTS_DEP_HISTORY
+" =============================================================================
   METHOD persist_result.
-    " Requires table ZGCTS_DEP_HISTORY to be created first.
-    " Use TYPE table-field for timestamp to match the table's packed field type.
+    " For multi-input runs we persist mv_label as the "TR" value so the
+    " analysis can be located later by querying ZGCTS_DEP_HISTORY-tr_id.
     DATA lv_ts   TYPE zgcts_dep_history-run_ts.
     DATA lv_date TYPE d.
     DATA lv_time TYPE t.
@@ -806,7 +886,7 @@ CLASS zcl_gcts_tr_analyzer IMPLEMENTATION.
       DATA(lv_action) = pull_action_of_task( ls_dep-source_task ).
 
       APPEND VALUE #(
-        tr_id       = mv_tr
+        tr_id       = mv_label
         run_ts      = lv_ts
         src_task    = ls_dep-source_task
         src_obj     = ls_dep-source_object(60)

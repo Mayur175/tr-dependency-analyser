@@ -23,6 +23,15 @@ final class TrDetector {
     private static final Pattern TR_PATTERN =
             Pattern.compile("\\b([A-Z0-9]{3,4}K[0-9]{6})\\b");
 
+    /**
+     * Comma-separated list of TR / task ids.
+     * Examples that match: "GMWK900691", "DEVK900042,DEVK900043",
+     *                      " GMWK900691 , DEVK900042 ".
+     */
+    private static final Pattern TR_LIST_PATTERN =
+            Pattern.compile("^\\s*[A-Z0-9]{3,4}K[0-9]{6}"
+                          + "(\\s*,\\s*[A-Z0-9]{3,4}K[0-9]{6})*\\s*$");
+
     /** Fully-qualified ADT interface name — loaded reflectively to avoid hard compile dependency. */
     private static final String ADT_TR_INTERFACE =
             "com.sap.adt.cts.core.model.ICtsTransportRequest";
@@ -85,7 +94,16 @@ final class TrDetector {
 
     // ── Validation ────────────────────────────────────────────────────────────
 
+    /** Strict single-id validation (one TR or task). */
     static boolean isValidTr(String tr) {
         return tr != null && TR_PATTERN.matcher(tr.trim()).matches();
+    }
+
+    /**
+     * Validates a comma-separated list of one or more TR / task ids.
+     * Used by the input dialog so the user can request a cross-TR analysis.
+     */
+    static boolean isValidTrList(String list) {
+        return list != null && TR_LIST_PATTERN.matcher(list).matches();
     }
 }

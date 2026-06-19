@@ -13,3 +13,7 @@ eclipse/com.gmw.gcts.analyzer.updatesite/target/
 # Eclipse workspace
 .metadata/
 *.launch
+
+# Python bytecode
+__pycache__/
+*.pyc

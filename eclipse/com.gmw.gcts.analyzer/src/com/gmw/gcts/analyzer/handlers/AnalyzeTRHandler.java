@@ -3,6 +3,11 @@ package com.gmw.gcts.analyzer.handlers;
 import org.eclipse.core.commands.AbstractHandler;
 import org.eclipse.core.commands.ExecutionEvent;
 import org.eclipse.core.commands.ExecutionException;
+import org.eclipse.core.runtime.IProgressMonitor;
+import org.eclipse.core.runtime.IStatus;
+import org.eclipse.core.runtime.Status;
+import org.eclipse.core.runtime.jobs.Job;
+import org.eclipse.jface.dialogs.IInputValidator;
 import org.eclipse.jface.dialogs.InputDialog;
 import org.eclipse.jface.dialogs.MessageDialog;
 import org.eclipse.jface.viewers.ISelection;
@@ -17,18 +22,17 @@ import org.eclipse.ui.handlers.HandlerUtil;
 
 import com.gmw.gcts.analyzer.client.AnalyzerHttpClient;
 import com.gmw.gcts.analyzer.model.AnalysisResult;
-import com.gmw.gcts.analyzer.views.DependencyGraphView;
 import com.gmw.gcts.analyzer.views.DependencyResultView;
 
 /**
  * Command handler for "Analyse gCTS Dependencies".
  *
- * Flow (Phase 2+3 — no clipboard, no F9):
- *   1. Detect TR via TrDetector (IAdaptable first, regex toString fallback)
- *   2. InputDialog — pre-filled, user confirms or edits
- *   3. Open DependencyResultView + DependencyGraphView → show loading state
- *   4. Background thread: AnalyzerHttpClient.analyze(tr) → ICF REST call
- *   5. Both views receive showResult() — marshalled to UI thread
+ * Flow:
+ *   1. Detect TR via TrDetector (IAdaptable + regex toString fallback)
+ *   2. InputDialog - pre-filled, user confirms or edits
+ *   3. Open DependencyResultView, show loading state
+ *   4. Background Eclipse Job runs AnalyzerHttpClient.analyze(tr)
+ *   5. View receives showResult() - marshalled to UI thread inside the view
  */
 public class AnalyzeTRHandler extends AbstractHandler {
 
@@ -39,85 +43,100 @@ public class AnalyzeTRHandler extends AbstractHandler {
 
         String detected = detectTrFromSelection(sel);
         String tr = promptForTr(shell, detected);
-        if (tr == null) return null;
+        if (tr == null) {
+            return null;
+        }
 
         runAnalysis(tr, shell);
         return null;
     }
 
-    // ── Step 1: TR detection (IAdaptable → regex fallback) ────────────────────
+    // -- Step 1: TR detection (IAdaptable -> regex fallback) -----------------
 
     private String detectTrFromSelection(ISelection selection) {
-        if (!(selection instanceof IStructuredSelection ss)) return null;
-        return TrDetector.detect(ss);
+        if (selection instanceof IStructuredSelection) {
+            return TrDetector.detect((IStructuredSelection) selection);
+        }
+        return null;
     }
 
-    // ── Step 2: Confirm TR via InputDialog ────────────────────────────────────
+    // -- Step 2: Confirm TR via InputDialog ----------------------------------
 
     private String promptForTr(Shell shell, String detected) {
+        IInputValidator validator = new IInputValidator() {
+            @Override
+            public String isValid(String input) {
+                if (input == null || input.trim().isEmpty()) {
+                    return "Please enter one or more TR / task numbers (comma-separated).";
+                }
+                if (!TrDetector.isValidTrList(input)) {
+                    return "Invalid format. Expected one or more ids matching "
+                         + "[A-Z0-9]{3,4}K[0-9]{6} (e.g. GMWK900691 or "
+                         + "DEVK900042,DEVK900043).";
+                }
+                return null;
+            }
+        };
+
         InputDialog dlg = new InputDialog(
             shell,
-            "gCTS Dependency Analyser",
-            "Transport Request number (e.g. GMWK900691):",
+            "TR Analyser",
+            "TR / Task number(s), comma-separated\n"
+                + "(e.g. GMWK900691  or  DEVK900042,DEVK900043):",
             detected != null ? detected : "",
-            input -> {
-                if (input == null || input.isBlank())
-                    return "Please enter a TR number.";
-                if (!TrDetector.isValidTr(input.trim()))
-                    return "Invalid format. Expected: [A-Z0-9]{3,4}K[0-9]{6}  e.g. GMWK900691";
-                return null;
-            });
-        return dlg.open() == Window.OK ? dlg.getValue().trim().toUpperCase() : null;
+            validator);
+
+        if (dlg.open() != Window.OK) {
+            return null;
+        }
+        // Normalise: strip whitespace around commas, upper-case all ids
+        return dlg.getValue().toUpperCase().replaceAll("\\s+", "");
     }
 
-    // ── Steps 3–5: Open views, call ICF, render result ────────────────────────
+    // -- Steps 3-5: Open view, call ICF, render result -----------------------
 
-    private void runAnalysis(String tr, Shell shell) {
+    private void runAnalysis(final String tr, final Shell shell) {
         IWorkbenchPage page = PlatformUI.getWorkbench()
                                         .getActiveWorkbenchWindow()
                                         .getActivePage();
 
-        DependencyResultView tableView = openTableView(page, shell);
-        DependencyGraphView  graphView = openGraphView(page);  // optional — no error if unavailable
+        final DependencyResultView view = openTableView(page, shell);
+        if (view == null) {
+            return;
+        }
 
-        if (tableView == null) return;
+        view.showLoading(tr);
 
-        tableView.showLoading(tr);
-        if (graphView != null) graphView.showResult(emptyLoadingResult(tr));
-
-        new Thread(() -> {
-            AnalyzerHttpClient client = new AnalyzerHttpClient();
-            AnalysisResult result = client.analyze(tr);
-            tableView.showResult(result);
-            if (graphView != null) graphView.showResult(result);
-        }, "gcts-analyzer-" + tr).start();
+        Job job = new Job("TR Analyser: " + tr) {
+            @Override
+            protected IStatus run(IProgressMonitor monitor) {
+                monitor.beginTask("Analysing " + tr, IProgressMonitor.UNKNOWN);
+                try {
+                    AnalyzerHttpClient client = new AnalyzerHttpClient();
+                    AnalysisResult result = client.analyze(tr);
+                    view.showResult(result);
+                    return Status.OK_STATUS;
+                } finally {
+                    monitor.done();
+                }
+            }
+        };
+        job.setUser(true);
+        job.schedule();
     }
 
     private DependencyResultView openTableView(IWorkbenchPage page, Shell shell) {
         try {
             IViewPart part = page.showView(DependencyResultView.ID, null,
                                            IWorkbenchPage.VIEW_ACTIVATE);
-            return part instanceof DependencyResultView v ? v : null;
+            if (part instanceof DependencyResultView) {
+                return (DependencyResultView) part;
+            }
+            return null;
         } catch (PartInitException e) {
-            MessageDialog.openError(shell, "gCTS Analyser",
-                "Could not open Dependency Analysis view:\n" + e.getMessage());
+            MessageDialog.openError(shell, "TR Analyser",
+                "Could not open the analysis view:\n" + e.getMessage());
             return null;
         }
-    }
-
-    private DependencyGraphView openGraphView(IWorkbenchPage page) {
-        try {
-            // VIEW_CREATE (not ACTIVATE) so the table view stays in front
-            IViewPart part = page.showView(DependencyGraphView.ID, null,
-                                           IWorkbenchPage.VIEW_CREATE);
-            return part instanceof DependencyGraphView v ? v : null;
-        } catch (Exception e) {
-            return null;  // Zest not installed — graph view silently absent
-        }
-    }
-
-    /** Placeholder result shown in graph view while HTTP call is in flight. */
-    private static AnalysisResult emptyLoadingResult(String tr) {
-        return AnalysisResult.error("Loading TR " + tr + " …");
     }
 }

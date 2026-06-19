@@ -2,9 +2,7 @@ package com.gmw.gcts.analyzer.views;
 
 import java.util.List;
 
-import org.eclipse.jface.action.Action;
 import org.eclipse.jface.action.IToolBarManager;
-import org.eclipse.jface.action.Separator;
 import org.eclipse.jface.resource.JFaceResources;
 import org.eclipse.jface.viewers.ITreeContentProvider;
 import org.eclipse.jface.viewers.LabelProvider;
@@ -25,40 +23,34 @@ import com.gmw.gcts.analyzer.model.AnalysisResult.Edge;
 import com.gmw.gcts.analyzer.model.AnalysisResult.PullStep;
 
 /**
- * Eclipse View — "gCTS Dependency Analysis".
+ * Eclipse View - "gCTS Dependency Analysis".
  *
  * Layout:
- *   ┌─────────────────────────────────────────────────┐
- *   │  TR: GMWK900691  Tasks: 4  Objects: 12  Edges: 3│  ← header label
- *   ├─────────────────────────────────────────────────┤
- *   │  TreeViewer                                     │
- *   │  ├─ [CRITICAL] Same object conflict             │
- *   │  │   ├─ Tasks: GMWK900692, GMWK900693           │
- *   │  │   └─ ZCL_FOO owned by both tasks [CONFLICT]  │
- *   │  ├─ [HIGH] Activation dependency                │
- *   │  │   ├─ Tasks: GMWK900694, GMWK900695           │
- *   │  │   └─ ZCL_BAR implements ZIF_BAR [IMPLEMENTS] │
- *   │  └─ [OK] Independent  → GMWK900696              │
- *   ├─────────────────────────────────────────────────┤
- *   │  Pull Order:                                    │
- *   │    Step 1: COORDINATE → GMWK900692, GMWK900693  │
- *   │    Step 2: Pull TOGETHER → GMWK900694 + 695     │
- *   │    Step 3: Pull alone → GMWK900696              │
- *   └─────────────────────────────────────────────────┘
+ *   +-------------------------------------------------+
+ *   |  TR: GMWK900691  Tasks: 4  Objects: 12  Edges:3 |  <- header label
+ *   +-------------------------------------------------+
+ *   |  TreeViewer                                     |
+ *   |  +- [CRITICAL] Same object conflict             |
+ *   |  |  +- Tasks: GMWK900692, GMWK900693            |
+ *   |  |  +- ZCL_FOO owned by both tasks [CONFLICT]   |
+ *   |  +- [HIGH] Activation dependency                |
+ *   |  +- [OK] Independent  -> GMWK900696             |
+ *   +-------------------------------------------------+
+ *   |  Pull Order:                                    |
+ *   |    Step 1: COORDINATE -> GMWK900692, GMWK900693 |
+ *   |    Step 2: Pull TOGETHER -> GMWK900694 + 695    |
+ *   +-------------------------------------------------+
  */
 public class DependencyResultView extends ViewPart {
 
     public static final String ID = "com.gmw.gcts.analyzer.views.dependencyResult";
 
-    private Label       headerLabel;
-    private TreeViewer  treeViewer;
-    private Label       pullOrderLabel;
-    private Action      refreshAction;
+    private Label           headerLabel;
+    private TreeViewer      treeViewer;
+    private Label           pullOrderLabel;
     private ExportCsvAction exportAction;
 
-    private AnalysisResult lastResult;
-
-    // ── ViewPart lifecycle ────────────────────────────────────────────────────
+    // -- ViewPart lifecycle --------------------------------------------------
 
     @Override
     public void createPartControl(Composite parent) {
@@ -68,7 +60,7 @@ public class DependencyResultView extends ViewPart {
         headerLabel = new Label(parent, SWT.NONE);
         headerLabel.setFont(JFaceResources.getBannerFont());
         headerLabel.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false));
-        headerLabel.setText("gCTS Dependency Analysis — no result yet");
+        headerLabel.setText("TR Analyser - no result yet");
 
         // Tree viewer for clusters and edges
         treeViewer = new TreeViewer(parent, SWT.BORDER | SWT.V_SCROLL | SWT.H_SCROLL);
@@ -87,125 +79,144 @@ public class DependencyResultView extends ViewPart {
 
     @Override
     public void setFocus() {
-        treeViewer.getControl().setFocus();
+        if (treeViewer != null && !treeViewer.getControl().isDisposed()) {
+            treeViewer.getControl().setFocus();
+        }
     }
 
-    // ── Public API called by AnalyzeTRHandler ─────────────────────────────────
+    // -- Public API called by AnalyzeTRHandler -------------------------------
 
     /**
-     * Renders a successful analysis result.
-     * Safe to call from a background thread — marshals to UI thread internally.
+     * Renders an analysis result.
+     * Safe to call from a background thread - marshals to UI thread internally.
      */
-    public void showResult(AnalysisResult result) {
-        lastResult = result;
-        Display.getDefault().asyncExec(() -> {
-            if (treeViewer.getControl().isDisposed()) return;
-
-            if (result.hasError()) {
-                showError(result.errorMessage);
-                return;
-            }
-
-            headerLabel.setForeground(null);
-            headerLabel.setText(String.format(
-                "TR: %s   |   Tasks: %d   Objects: %d   Cross-task edges: %d",
-                result.tr, result.taskCount, result.objectCount, result.edgeCount));
-
-            treeViewer.setInput(result.clusters);
-            treeViewer.expandAll();
-
-            pullOrderLabel.setText(buildPullOrderText(result.pullOrder));
-            pullOrderLabel.getParent().layout(true, true);
-
-            // Enable CSV export now that we have a result
-            exportAction.setResult(result);
-        });
-    }
-
-    public void showError(String message) {
-        Display.getDefault().asyncExec(() -> {
-            if (headerLabel.isDisposed()) return;
-            Color red = Display.getDefault().getSystemColor(SWT.COLOR_RED);
-            headerLabel.setForeground(red);
-            headerLabel.setText("Error: " + message);
-            treeViewer.setInput(null);
-            pullOrderLabel.setText("");
-        });
-    }
-
-    public void showLoading(String tr) {
-        Display.getDefault().asyncExec(() -> {
-            if (headerLabel.isDisposed()) return;
-            headerLabel.setForeground(null);
-            headerLabel.setText("Analysing TR " + tr + " …");
-            treeViewer.setInput(null);
-            pullOrderLabel.setText("");
-        });
-    }
-
-    // ── Private helpers ───────────────────────────────────────────────────────
-
-    private void buildToolBar() {
-        exportAction = new ExportCsvAction(
-            treeViewer.getControl().getShell());
-
-        refreshAction = new Action("Refresh") {
+    public void showResult(final AnalysisResult result) {
+        Display.getDefault().asyncExec(new Runnable() {
             @Override
             public void run() {
-                if (lastResult != null && !lastResult.tr.isEmpty()) {
-                    setTitleToolTip("Re-run: right-click the TR and choose Analyse Dependencies");
+                if (treeViewer == null || treeViewer.getControl().isDisposed()) {
+                    return;
+                }
+
+                if (result.hasError()) {
+                    showErrorInternal(result.errorMessage);
+                    return;
+                }
+
+                headerLabel.setForeground(null);
+                headerLabel.setText(String.format(
+                    "TR: %s   |   Tasks: %d   Objects: %d   Cross-task edges: %d",
+                    result.tr, result.taskCount, result.objectCount, result.edgeCount));
+
+                treeViewer.setInput(result.clusters);
+                treeViewer.expandAll();
+
+                pullOrderLabel.setText(buildPullOrderText(result.pullOrder));
+                pullOrderLabel.getParent().layout(true, true);
+
+                if (exportAction != null) {
+                    exportAction.setResult(result);
                 }
             }
-        };
-        refreshAction.setToolTipText("Re-run analysis for the last TR");
+        });
+    }
+
+    public void showLoading(final String tr) {
+        Display.getDefault().asyncExec(new Runnable() {
+            @Override
+            public void run() {
+                if (headerLabel == null || headerLabel.isDisposed()) {
+                    return;
+                }
+                headerLabel.setForeground(null);
+                headerLabel.setText("Analysing TR " + tr + " ...");
+                treeViewer.setInput(null);
+                pullOrderLabel.setText("");
+                if (exportAction != null) {
+                    exportAction.setResult(null);
+                }
+            }
+        });
+    }
+
+    // -- Private helpers -----------------------------------------------------
+
+    private void showErrorInternal(String message) {
+        Color red = Display.getDefault().getSystemColor(SWT.COLOR_RED);
+        headerLabel.setForeground(red);
+        headerLabel.setText("Error: " + message);
+        treeViewer.setInput(null);
+        pullOrderLabel.setText("");
+    }
+
+    private void buildToolBar() {
+        exportAction = new ExportCsvAction(getSite().getShell());
 
         IToolBarManager tb = getViewSite().getActionBars().getToolBarManager();
-        tb.add(refreshAction);
-        tb.add(new Separator());
         tb.add(exportAction);
     }
 
     private static String buildPullOrderText(List<PullStep> steps) {
-        if (steps == null || steps.isEmpty()) return "";
-        StringBuilder sb = new StringBuilder("── Recommended Pull Order ──\n");
-        for (PullStep step : steps) sb.append("  ").append(step.label()).append("\n");
-        return sb.toString().stripTrailing();
+        if (steps == null || steps.isEmpty()) {
+            return "";
+        }
+        StringBuilder sb = new StringBuilder("-- Recommended Pull Order --\n");
+        for (PullStep step : steps) {
+            sb.append("  ").append(step.label()).append("\n");
+        }
+        return sb.toString();
     }
 
-    // ── TreeViewer content provider ───────────────────────────────────────────
+    // -- TreeViewer content provider -----------------------------------------
 
     private static final class ClusterContentProvider implements ITreeContentProvider {
 
         @Override
         public Object[] getElements(Object input) {
-            if (input instanceof List<?> list) return list.toArray();
+            if (input instanceof List) {
+                return ((List<?>) input).toArray();
+            }
             return new Object[0];
         }
 
         @Override
         public Object[] getChildren(Object parent) {
-            if (parent instanceof Cluster cluster) {
-                // Children = task summary node + individual edge nodes
+            if (parent instanceof Cluster) {
+                Cluster cluster = (Cluster) parent;
                 Object[] children = new Object[1 + cluster.edges.size()];
                 children[0] = new TasksNode(cluster.tasks);
-                for (int i = 0; i < cluster.edges.size(); i++) children[i + 1] = cluster.edges.get(i);
+                for (int i = 0; i < cluster.edges.size(); i++) {
+                    children[i + 1] = cluster.edges.get(i);
+                }
                 return children;
             }
             return new Object[0];
         }
 
         @Override
-        public Object getParent(Object element)  { return null; }
+        public Object getParent(Object element) {
+            return null;
+        }
 
         @Override
         public boolean hasChildren(Object element) {
-            return element instanceof Cluster c && (!c.tasks.isEmpty() || !c.edges.isEmpty());
+            if (element instanceof Cluster) {
+                Cluster c = (Cluster) element;
+                return !c.tasks.isEmpty() || !c.edges.isEmpty();
+            }
+            return false;
         }
     }
 
-    private record TasksNode(List<String> tasks) {}
+    /** Pseudo-node holding the list of tasks belonging to a cluster. */
+    private static final class TasksNode {
+        final List<String> tasks;
+        TasksNode(List<String> tasks) {
+            this.tasks = tasks;
+        }
+    }
 
-    // ── TreeViewer label provider ─────────────────────────────────────────────
+    // -- TreeViewer label provider -------------------------------------------
 
     private static final class ClusterLabelProvider extends LabelProvider {
         @Override
@@ -213,12 +224,15 @@ public class DependencyResultView extends ViewPart {
             if (element instanceof Cluster) {
                 Cluster c = (Cluster) element;
                 return c.riskLabel() + "   Tasks: " + c.tasksSummary();
-            } else if (element instanceof TasksNode) {
+            }
+            if (element instanceof TasksNode) {
                 TasksNode n = (TasksNode) element;
-                return "Tasks: " + String.join(", ", n.tasks());
-            } else if (element instanceof Edge) {
+                return "Tasks: " + String.join(", ", n.tasks);
+            }
+            if (element instanceof Edge) {
                 Edge e = (Edge) element;
-                return e.kind + ": " + e.detail + "   [" + e.fromTask + " → " + e.toTask + "]";
+                return e.kind + ": " + e.detail
+                     + "   [" + e.fromTask + " -> " + e.toTask + "]";
             }
             return element == null ? "" : element.toString();
         }

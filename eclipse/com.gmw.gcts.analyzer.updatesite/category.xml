@@ -7,10 +7,10 @@
     <category name="gmw.gcts"/>
   </feature>
 
-  <category-def name="gmw.gcts" label="gCTS Tools for ADT">
+  <category-def name="gmw.gcts" label="TR Analyser for ADT">
     <description>
-      SAP gCTS developer tools for Eclipse ADT.
-      Includes the TR Task Dependency Analyzer.
+      Cross-task / cross-TR dependency analyser for SAP Transport Requests.
+      Right-click any TR in the Transport Organizer and choose "TR Analyser".
     </description>
   </category-def>
 </site>

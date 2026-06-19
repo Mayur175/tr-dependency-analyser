@@ -2,37 +2,38 @@
 <?eclipse version="3.4"?>
 <plugin>
 
-  <!-- ═══════════════════════════════════════════════════════
+  <!-- =====================================================================
        1. COMMAND DEFINITION
-       ═══════════════════════════════════════════════════════ -->
+       ===================================================================== -->
   <extension point="org.eclipse.ui.commands">
     <command
         id="com.gmw.gcts.analyzer.commands.analyzeTR"
-        name="Analyse gCTS Dependencies…"
-        description="Detect cross-task object dependencies and recommend safe pull order"/>
+        name="TR Analyser"
+        description="Analyse Transport Request / Task dependencies and recommend a safe release order"/>
   </extension>
 
-  <!-- ═══════════════════════════════════════════════════════
+  <!-- =====================================================================
        2. HANDLER BINDING
-       ═══════════════════════════════════════════════════════ -->
+       ===================================================================== -->
   <extension point="org.eclipse.ui.handlers">
     <handler
         commandId="com.gmw.gcts.analyzer.commands.analyzeTR"
         class="com.gmw.gcts.analyzer.handlers.AnalyzeTRHandler"/>
   </extension>
 
-  <!-- ═══════════════════════════════════════════════════════
-       3. MENUS — context menu + top-level menu bar + toolbar
-       ═══════════════════════════════════════════════════════ -->
+  <!-- =====================================================================
+       3. MENUS - context menu + top-level menu bar + toolbar
+       ===================================================================== -->
   <extension point="org.eclipse.ui.menus">
 
-    <!-- Transport Organizer right-click context menu -->
+    <!-- Generic right-click context menu (works in Project Explorer,
+         Transport Organizer tree, etc.) -->
     <menuContribution allPopups="true"
         locationURI="popup:org.eclipse.ui.popup.any?after=additions">
       <command commandId="com.gmw.gcts.analyzer.commands.analyzeTR"
-               label="Analyse Dependencies…"
+               label="TR Analyser..."
                icon="icons/dependency.png"
-               tooltip="Detect cross-task dependencies for this TR">
+               tooltip="Analyse cross-task / cross-TR dependencies">
         <visibleWhen checkEnabled="false">
           <with variable="selection">
             <count value="+"/>
@@ -41,17 +42,14 @@
       </command>
     </menuContribution>
 
-    <!-- Top-level menu bar: gCTS Tools -->
+    <!-- Top-level menu bar -->
     <menuContribution locationURI="menu:org.eclipse.ui.main.menu?after=additions">
       <menu id="com.gmw.gcts.analyzer.menu"
-            label="gCTS Tools"
-            mnemonic="G">
+            label="TR Analyser"
+            mnemonic="T">
         <command commandId="com.gmw.gcts.analyzer.commands.analyzeTR"
-                 label="Analyse TR Dependencies…"
+                 label="TR Analyser..."
                  icon="icons/dependency.png"/>
-        <separator name="sep1" visible="true"/>
-        <command commandId="com.gmw.gcts.analyzer.commands.openView"
-                 label="Open Dependency Analysis View"/>
       </menu>
     </menuContribution>
 
@@ -60,61 +58,49 @@
       <toolbar id="com.gmw.gcts.analyzer.toolbar">
         <command commandId="com.gmw.gcts.analyzer.commands.analyzeTR"
                  icon="icons/dependency.png"
-                 tooltip="Analyse gCTS TR Dependencies (Ctrl+Alt+G)"/>
+                 tooltip="TR Analyser (Ctrl+Alt+G)"/>
       </toolbar>
     </menuContribution>
 
   </extension>
 
-  <!-- ═══════════════════════════════════════════════════════
-       4. KEYBOARD SHORTCUT  Ctrl+Alt+G / Cmd+Alt+G
-       ═══════════════════════════════════════════════════════ -->
+  <!-- =====================================================================
+       4. KEYBOARD SHORTCUT  M1+M3+G  (Ctrl+Alt+G on Win/Linux, Cmd+Alt+G on Mac)
+       ===================================================================== -->
   <extension point="org.eclipse.ui.bindings">
     <key commandId="com.gmw.gcts.analyzer.commands.analyzeTR"
          sequence="M1+M3+G"
-         schemeId="org.eclipse.ui.defaultAcceleratorConfiguration"/>
+         schemeId="org.eclipse.ui.defaultAcceleratorConfiguration"
+         contextId="org.eclipse.ui.contexts.window"/>
   </extension>
 
-  <!-- ═══════════════════════════════════════════════════════
-       5. VIEWS — Result table + Zest graph
-       ═══════════════════════════════════════════════════════ -->
+  <!-- =====================================================================
+       5. VIEW - structured table view (clusters, edges, pull order)
+       ===================================================================== -->
   <extension point="org.eclipse.ui.views">
 
-    <!-- Structured table view (clusters, edges, pull order) -->
+    <category
+        id="com.gmw.gcts.analyzer.viewCategory"
+        name="TR Analyser"/>
+
     <view
         id="com.gmw.gcts.analyzer.views.dependencyResult"
-        name="gCTS Dependency Analysis"
+        name="TR Analyser"
         class="com.gmw.gcts.analyzer.views.DependencyResultView"
-        category="com.sap.adt"
-        icon="icons/dependency.png"
-        restorable="true"
-        allowMultiple="false"/>
-
-    <!-- Zest visual graph view (Phase 3) -->
-    <view
-        id="com.gmw.gcts.analyzer.views.dependencyGraph"
-        name="gCTS Dependency Graph"
-        class="com.gmw.gcts.analyzer.views.DependencyGraphView"
-        category="com.sap.adt"
+        category="com.gmw.gcts.analyzer.viewCategory"
         icon="icons/dependency.png"
         restorable="true"
         allowMultiple="false"/>
 
   </extension>
 
-  <!-- ═══════════════════════════════════════════════════════
+  <!-- =====================================================================
        6. PREFERENCES PAGE
-       ═══════════════════════════════════════════════════════ -->
+       ===================================================================== -->
   <extension point="org.eclipse.ui.preferencePages">
     <page
         id="com.gmw.gcts.analyzer.preferences"
-        name="gCTS Tools"
-        class="com.gmw.gcts.analyzer.preferences.AnalyzerPreferencePage">
-    </page>
-    <page
-        id="com.gmw.gcts.analyzer.preferences.analyzer"
-        name="Dependency Analyzer"
-        category="com.gmw.gcts.analyzer.preferences"
+        name="TR Analyser"
         class="com.gmw.gcts.analyzer.preferences.AnalyzerPreferencePage">
     </page>
   </extension>

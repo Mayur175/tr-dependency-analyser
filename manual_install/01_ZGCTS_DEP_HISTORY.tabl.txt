@@ -1,0 +1,21 @@
+@EndUserText.label : 'TR Analyser - Dependency Analysis History'
+@AbapCatalog.enhancement.category : #NOT_EXTENSIBLE
+@AbapCatalog.tableCategory : #TRANSPARENT
+@AbapCatalog.deliveryClass : #A
+@AbapCatalog.dataMaintenance : #LIMITED
+define table zgcts_dep_history {
+
+  key client      : abap.clnt    not null;
+  key tr_id       : abap.char(20) not null;
+  key run_ts      : abap.dec(15,0) not null;
+  key src_task    : abap.char(20) not null;
+  key src_obj     : abap.char(60) not null;
+  key tgt_task    : abap.char(20) not null;
+  key tgt_obj     : abap.char(60) not null;
+  kind            : abap.char(20);
+  risk            : abap.char(10);
+  detail          : abap.char(200);
+  pull_step       : abap.int4;
+  pull_action     : abap.char(30);
+
+}

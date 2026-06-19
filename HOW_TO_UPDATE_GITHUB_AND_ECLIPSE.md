@@ -54,6 +54,15 @@ Bad messages (please avoid — your future self will hate you):
 - ❌ `"fix"`
 - ❌ `"changes"`
 
+> **⚠️ Multi-line / special-character messages:** if your message spans
+> more than one line, or contains `(`, `)`, `&`, `!`, `` ` ``, `$`, `"`, or
+> `'`, **do not** use `git commit -m "..."` — zsh will trap you at a
+> `dquote>` continuation prompt and the commit will hang forever. Use
+> `git commit -F .git-commit-msg.tmp` (file-based) instead. Full recipe
+> and recovery steps are in
+> [`HOW_TO_PUSH_TO_GITHUB.md` → "Multi-line commit messages — avoid the
+> `dquote>` trap"](HOW_TO_PUSH_TO_GITHUB.md#%EF%B8%8F-multi-line-commit-messages--avoid-the-dquote-trap).
+
 ### Step 3 — Push to GitHub
 
 ```bash

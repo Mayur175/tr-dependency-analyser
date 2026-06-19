@@ -213,6 +213,94 @@ Five questions, twenty seconds each:
 
 ---
 
+## ⚠️ Multi-line commit messages — avoid the `dquote>` trap
+
+If your commit message has more than one paragraph, or contains any of:
+
+- parentheses around numbers, e.g. `lv_risk(10)`, `pull_action(30)`
+- ampersands, e.g. `ANALYZER & DEP_ATC_CHECK`
+- backticks, single quotes inside double quotes
+- exclamation marks (zsh treats `!` as history expansion even inside `"`)
+- a `$(...)`, `` ` ` ``, or `${...}` fragment
+
+…then **DO NOT use `git commit -m "..."` directly on the command line**.
+zsh will silently break out of the double-quote, leave you stuck at a
+`dquote>` continuation prompt, and the commit will hang forever waiting
+for a closing quote that never comes. The terminal log looks like this:
+
+```text
+cmdand dquote>   - constructor: drop the (001) text-symbol reference...
+cmdand dquote>   - run: replace deprecated static GV_TR_ID...
+cmdand dquote> ZCL_GCTS_TR_ANALYZER (persist_result):
+```
+
+That `dquote>` is zsh asking for the rest of the string. The command
+never runs, the push never happens, and any tool driving the terminal
+(Cline, an IDE task runner, CI) just sits in "Pending" forever.
+
+### The safe pattern — file-based commit message
+
+```bash
+cd "TR dependency"
+
+# 1. Write the message to a temp file (any editor or heredoc works)
+cat > .git-commit-msg.tmp <<'EOF'
+Code review fixes for ZCL_GCTS_TR_ANALYZER & ZCL_GCTS_DEP_ATC_CHECK
+
+ZCL_GCTS_TR_ANALYZER (persist_result):
+  - Remove (len) substring forms on string values (lv_risk(10),
+    ls_dep-kind(20), pull_action(30), source_object(60), etc.).
+
+ZCL_GCTS_DEP_ATC_CHECK (constructor + run + raise_finding):
+  - Drop (001) text-symbol reference; class has no text elements.
+  - Replace deprecated static GV_TR_ID with instance constructor.
+EOF
+
+# 2. Commit using -F (file), not -m (string)
+git commit -F .git-commit-msg.tmp
+
+# 3. Push and clean up
+git push tr-dep main
+rm .git-commit-msg.tmp
+```
+
+The single-quoted `<<'EOF'` heredoc disables every shell expansion, so
+parentheses, `&`, `!`, `$`, backticks — none of them matter.
+
+### Other safe alternatives
+
+| Situation | Command |
+|---|---|
+| Multi-line message, ad-hoc | `git commit` (no `-m`) → opens `$EDITOR` |
+| Multi-line message, scripted | `git commit -F path/to/msg.txt` |
+| Single short line, plain ASCII | `git commit -m 'short message'` (single quotes) |
+| Want to amend the last commit's message | `git commit --amend -F newmsg.txt` |
+
+### Rules of thumb for `-m`
+
+`git commit -m "..."` is **only** safe when ALL of these are true:
+
+1. The message fits on one line.
+2. It contains no `(`, `)`, `&`, `!`, `` ` ``, `$`, `"`, `'`.
+3. It is plain ASCII (no smart quotes pasted from a doc).
+
+If even one of those is in doubt → use `-F` with a file. It's two extra
+lines and saves you from a hung terminal.
+
+### Recovering when you ARE stuck at `dquote>`
+
+If your terminal already shows `dquote>` (or `quote>` for single-quote):
+
+1. Type a single `"` (or `'`) and press Enter — closes the dangling string.
+2. Press `Ctrl+C` to abort the now-malformed command.
+3. Verify nothing was committed: `git log -1 --oneline`.
+4. Retry using the file-based pattern above.
+
+Do **not** keep pasting more lines hoping it'll figure itself out — every
+new line just gets appended to the same broken string.
+
+---
+
 ## A note on the "two-remote" pattern
 
 This project pushes to both an internal (`github.tools.sap`) and a public
@@ -265,14 +353,15 @@ where you upload the Eclipse update-site ZIP for users to download.
    git commit -m  │  commit with a real msg    │
    git push       │  send to remote            │
                   │                            │
-                  ├─── BEFORE YOU PUSH ────────┤
-                  │  1. Build: mvn package     │
-                  │  2. Tests: python3 sims    │
-                  │  3. Grep: no debug flags   │
-                  │  4. Msg:  is it useful?    │
-                  │  5. Remote: origin / github│
-                  │                            │
-                  └────────────────────────────┘
+                   ├─── BEFORE YOU PUSH ────────┤
+                   │  1. Build: mvn package     │
+                   │  2. Tests: python3 sims    │
+                   │  3. Grep: no debug flags   │
+                   │  4. Msg:  is it useful?    │
+                   │  5. Remote: origin / github│
+                   │  6. Multi-line msg? -F file│
+                   │                            │
+                   └────────────────────────────┘
 ```
 
 ---

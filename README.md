@@ -13,7 +13,16 @@ Works on:
 
 ## Install — Eclipse plugin
 
-### Method 1 — Update site URL (recommended, abap-cleaner-style)
+Three install methods. Method 1 is the easiest; pick another if your
+environment cannot reach the public internet.
+
+| # | Method | Best for | Requires |
+|---|--------|----------|----------|
+| 1 | **Update-site URL** (recommended) | Most users | Open internet access from Eclipse |
+| 2 | **Local ZIP / archive** | Air-gapped or locked-down environments | A built ZIP or `repository/` folder |
+| 3 | **Dropins JAR** | Quick smoke test on one machine | Single plugin JAR |
+
+### Method 1 — Update-site URL (recommended, abap-cleaner-style)
 
 In Eclipse / ADT:
 
@@ -27,28 +36,50 @@ In Eclipse / ADT:
 That's it. No manual download, no ZIP juggling, exactly the same flow as
 the SAP `abap-cleaner` plugin.
 
-### Method 2 — Local ZIP (offline / locked-down environments)
+> The URL is a **public-GitHub-Pages** site (`github.io`), not the
+> SAP-internal one. Anyone on the open internet can install from it;
+> Eclipse's P2 client follows the redirect cleanly with no authentication
+> required. Future versions appear automatically when you do
+> *Help → Check for Updates*.
 
-1. Build the update site once (or download the published `dist/gcts-analyzer-updatesite-*.zip`):
+### Method 2 — Local ZIP / archive (offline)
+
+Use this when your Eclipse cannot reach `github.io` (corporate proxy,
+air-gapped network, etc.).
+
+1. Build the update site once (or grab the latest from the
+   [GitHub Releases page](https://github.com/Mayur175/tr-dependency-analyser/releases)):
    ```bash
    cd "TR dependency/eclipse"
    mvn clean package -DskipTests
    ```
-   Output: `com.gmw.gcts.analyzer.updatesite/target/repository/`
+   Output: `com.gmw.gcts.analyzer.updatesite/target/repository/` and
+   `com.gmw.gcts.analyzer.updatesite-1.0.0-SNAPSHOT.zip`.
 2. In Eclipse: **Help → Install New Software → Add → Archive…**
-3. Browse to the `repository/` folder (or the ZIP).
-4. Tick **TR Analyser for ADT** → Next → Next → Finish → restart Eclipse.
+3. Browse to the ZIP **or** the unpacked `repository/` folder.
+4. Tick **TR Analyser for ADT** → **Next** → **Next** → **Finish** →
+   restart Eclipse.
 
-### Method B — Dropins JAR
+### Method 3 — Dropins JAR (quickest, no UI dialogs)
 
-1. After `mvn package`, copy `com.gmw.gcts.analyzer/target/com.gmw.gcts.analyzer-*.jar`
-   into your Eclipse `dropins/` folder.
-2. Restart Eclipse with `eclipse -clean` (once).
+Use this when you just want to drop one file into Eclipse and restart.
 
-> The update-site URL above is a **public-GitHub-Pages** site
-> (`github.io`), not the SAP-internal one. Anyone on the open internet
-> can install from it; Eclipse's P2 client follows the redirect cleanly
-> with no authentication required.
+1. Run `mvn package` (as in Method 2) and locate
+   `eclipse/com.gmw.gcts.analyzer/target/com.gmw.gcts.analyzer-*.jar`
+   (about 42 KB).
+2. Copy that single JAR into your Eclipse installation's `dropins/`
+   folder. Locations:
+   - **macOS:** `/Applications/Eclipse.app/Contents/Eclipse/dropins/`
+   - **Windows:** `C:\eclipse\dropins\` (wherever you installed Eclipse)
+   - **Linux:** `~/eclipse/dropins/` (or wherever the install lives)
+3. Restart Eclipse **once** with the `-clean` flag so it re-scans dropins:
+   ```bash
+   eclipse -clean
+   ```
+   After that one restart, normal Eclipse launches will pick the plugin up.
+
+> Methods 2 and 3 do **not** auto-update. To upgrade, repeat the steps
+> with the new ZIP / JAR. Use Method 1 if you want automatic updates.
 
 ---
 

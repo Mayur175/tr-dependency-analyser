@@ -18,6 +18,7 @@ import org.eclipse.equinox.security.storage.StorageException;
 import org.eclipse.jface.preference.IPreferenceStore;
 
 import com.gmw.gcts.analyzer.Activator;
+import com.gmw.gcts.analyzer.client.AdtSessionAdapter.AdtConnection;
 import com.gmw.gcts.analyzer.model.AnalysisResult;
 import com.gmw.gcts.analyzer.preferences.PreferenceConstants;
 
@@ -25,8 +26,16 @@ import com.gmw.gcts.analyzer.preferences.PreferenceConstants;
  * Calls the ABAP ICF service:  GET {systemUrl}/sap/bc/zgcts/analyze?tr=&lt;TR&gt;
  * and returns a parsed AnalysisResult.
  *
- * Connection settings (URL, user, password, timeout) come from the
- * Eclipse preference store - configured via Window -> Preferences -> gCTS Tools.
+ * Connection settings precedence (first non-empty wins):
+ *
+ *   1. Active ABAP project in ADT (auto-discovered, no second login).
+ *      Discovered via {@link AdtSessionAdapter} which uses public Eclipse
+ *      APIs + best-effort reflection on {@code com.sap.adt.tools.core.*}.
+ *   2. The Eclipse preference store (Window -> Preferences -> TR Analyser).
+ *
+ * Username + password are still pulled from the preference store /
+ * Eclipse Secure Storage. URL is auto-detected from the active ABAP
+ * project when possible.
  */
 public final class AnalyzerHttpClient {
 
@@ -37,23 +46,61 @@ public final class AnalyzerHttpClient {
     private final String     systemUrl;
     private final String     authHeader;
     private final int        timeoutSeconds;
+    private final String     sourceLabel;   // "ADT project: X" or "Preferences"
 
-    // -- Constructor - reads preferences -------------------------------------
+    // -- Constructor - merges ADT-project discovery + preference store -------
 
     public AnalyzerHttpClient() {
         IPreferenceStore prefs = Activator.getDefault().getPreferenceStore();
 
-        this.systemUrl      = normalise(prefs.getString(PreferenceConstants.PREF_SYSTEM_URL));
+        // 1. Try to learn URL/user from the active ABAP project (no login).
+        AdtConnection adt = AdtSessionAdapter.discover();
+
+        String prefUrl  = normalise(prefs.getString(PreferenceConstants.PREF_SYSTEM_URL));
+        String prefUser = prefs.getString(PreferenceConstants.PREF_USERNAME);
+        String pwd      = loadPassword();
+
+        // 2. Pick the URL: ADT project wins if it has one.
+        String resolvedUrl;
+        String label;
+        if (adt != null && adt.hasUrl()) {
+            resolvedUrl = normalise(adt.url);
+            label = "ADT project: " + adt.projectName;
+        } else if (!prefUrl.isEmpty()) {
+            resolvedUrl = prefUrl;
+            label = "Preferences";
+            if (adt != null && !adt.projectName.isEmpty()) {
+                label += " (project " + adt.projectName + " did not expose URL)";
+            }
+        } else {
+            resolvedUrl = "";
+            label = "(no URL found)";
+        }
+        this.systemUrl   = resolvedUrl;
+        this.sourceLabel = label;
+
+        // 3. Pick the username: preference value wins (user explicitly set
+        //    it); fall back to ADT-discovered user only when preference is
+        //    empty.
+        String resolvedUser = prefUser != null ? prefUser : "";
+        if (resolvedUser.isEmpty() && adt != null && adt.hasUser()) {
+            resolvedUser = adt.user;
+        }
+        this.authHeader = buildAuthHeader(resolvedUser, pwd);
+
+        // 4. Timeout from preferences (or default).
         int t = prefs.getInt(PreferenceConstants.PREF_TIMEOUT_S);
         this.timeoutSeconds = t > 0 ? t : PreferenceConstants.DEFAULT_TIMEOUT;
-        this.authHeader     = buildAuthHeader(
-                prefs.getString(PreferenceConstants.PREF_USERNAME),
-                loadPassword());
 
         this.httpClient = HttpClient.newBuilder()
                 .connectTimeout(Duration.ofSeconds(this.timeoutSeconds))
                 .followRedirects(HttpClient.Redirect.NORMAL)
                 .build();
+    }
+
+    /** Where the URL came from - useful in error messages and logs. */
+    public String getSourceLabel() {
+        return sourceLabel;
     }
 
     // -- Public API ----------------------------------------------------------
@@ -67,8 +114,9 @@ public final class AnalyzerHttpClient {
     public AnalysisResult analyze(String tr) {
         if (systemUrl.isEmpty()) {
             return AnalysisResult.error(
-                "No SAP system URL configured.\n" +
-                "Go to Window > Preferences > TR Analyser.");
+                "No SAP system URL found.\n" +
+                "Either log into an ABAP project in ADT (URL is detected automatically),\n" +
+                "or set the URL manually in Window > Preferences > TR Analyser.");
         }
         if (tr == null || tr.trim().isEmpty()) {
             return AnalysisResult.error("TR number is empty.");

@@ -3,22 +3,29 @@
 <plugin>
 
   <!-- =====================================================================
-       1. COMMAND DEFINITION
+       1. COMMAND DEFINITIONS
        ===================================================================== -->
   <extension point="org.eclipse.ui.commands">
     <command
         id="com.gmw.gcts.analyzer.commands.analyzeTR"
         name="TR Analyser"
         description="Analyse Transport Request / Task dependencies and recommend a safe release order"/>
+    <command
+        id="com.gmw.gcts.analyzer.commands.checkForUpdates"
+        name="TR Analyser - Check for Updates"
+        description="Check the TR Analyser update site for a newer version"/>
   </extension>
 
   <!-- =====================================================================
-       2. HANDLER BINDING
+       2. HANDLER BINDINGS
        ===================================================================== -->
   <extension point="org.eclipse.ui.handlers">
     <handler
         commandId="com.gmw.gcts.analyzer.commands.analyzeTR"
         class="com.gmw.gcts.analyzer.handlers.AnalyzeTRHandler"/>
+    <handler
+        commandId="com.gmw.gcts.analyzer.commands.checkForUpdates"
+        class="com.gmw.gcts.analyzer.handlers.CheckForUpdatesHandler"/>
   </extension>
 
   <!-- =====================================================================
@@ -50,6 +57,11 @@
         <command commandId="com.gmw.gcts.analyzer.commands.analyzeTR"
                  label="TR Analyser..."
                  icon="icons/dependency.png"/>
+        <separator name="com.gmw.gcts.analyzer.menu.sep1"
+                   visible="true"/>
+        <command commandId="com.gmw.gcts.analyzer.commands.checkForUpdates"
+                 label="Check for Updates..."
+                 tooltip="Pull the latest TR Analyser version from the update site"/>
       </menu>
     </menuContribution>
 

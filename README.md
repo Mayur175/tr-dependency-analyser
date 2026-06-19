@@ -13,9 +13,21 @@ Works on:
 
 ## Install — Eclipse plugin
 
-Two methods. Pick one.
+### Method 1 — Update site URL (recommended, abap-cleaner-style)
 
-### Method A — Local ZIP (recommended)
+In Eclipse / ADT:
+
+1. **Help → Install New Software…**
+2. Click **Add…**
+3. **Name:** `TR Dependency Analyser`
+   **Location:** `https://mayur175.github.io/tr-dependency-analyser/`
+4. Tick **TR Analyser for ADT** in the list → **Next** → **Next** →
+   accept licence → **Finish** → restart Eclipse.
+
+That's it. No manual download, no ZIP juggling, exactly the same flow as
+the SAP `abap-cleaner` plugin.
+
+### Method 2 — Local ZIP (offline / locked-down environments)
 
 1. Build the update site once (or download the published `dist/gcts-analyzer-updatesite-*.zip`):
    ```bash
@@ -33,10 +45,10 @@ Two methods. Pick one.
    into your Eclipse `dropins/` folder.
 2. Restart Eclipse with `eclipse -clean` (once).
 
-> **Why no public update-site URL?**  The plan once advertised
-> `https://mayur175.github.io/tr-analyser/updatesite`. SAP enterprise GitHub
-> Pages requires authentication, which Eclipse's P2 client cannot follow, so
-> that URL is **not** usable. Use Method A or B above.
+> The update-site URL above is a **public-GitHub-Pages** site
+> (`github.io`), not the SAP-internal one. Anyone on the open internet
+> can install from it; Eclipse's P2 client follows the redirect cleanly
+> with no authentication required.
 
 ---
 

@@ -11,6 +11,28 @@ Works on:
 
 ---
 
+## ABAP backend — pick the right variant for your landscape
+
+The repo ships **two parallel ABAP source trees**. Install one, never both.
+
+| Your landscape | Use this folder | ABAP language version | Why |
+|---|---|---|---|
+| On-prem (NW 7.5x / S/4HANA on-prem), **S/4HANA Cloud Private** | [`abap/`](abap/) | Standard ABAP | Direct reads of `E070`/`E071`/`DD03L`/`SEOMETAREL`/`TFDIR` are allowed; full feature set |
+| **S/4HANA Cloud Public**, **BTP ABAP Environment / Steampunk** | [`abap_cloud/`](abap_cloud/) | **ABAP for Cloud Development** (strict allow-list) | Classic tables are blocked at compile time; uses XCO + gCTS REST + `IF_HTTP_SERVICE_EXTENSION` instead |
+
+If you try to install the classic `abap/` source on a public-cloud tenant you will get ~30 ATC errors of the form `The use of element OBJ_NAME of Table E071 is not permitted.` — that is the cloud allow-list refusing entry, not a bug. Switch to `abap_cloud/`.
+
+The cloud variant has the same public API surface (constructor signature, `to_json( )`, `to_csv( )`, `persist_result( )`, HTTP endpoint shape) so the Eclipse plugin works against either backend without code changes.
+
+For the full mapping of classic operations to their cloud equivalents (XCO, gCTS REST, `CL_CI_TEST_ROOT` etc.), see [`abap_cloud/README_CLOUD.md`](abap_cloud/README_CLOUD.md).
+
+| Want copy-paste install? | Use |
+|---|---|
+| Classic / private / on-prem | [`manual_install/`](manual_install/) |
+| Public Cloud / Steampunk | [`manual_install_cloud/`](manual_install_cloud/) |
+
+---
+
 ## Install — Eclipse plugin
 
 Three install methods. Method 1 is the easiest; pick another if your

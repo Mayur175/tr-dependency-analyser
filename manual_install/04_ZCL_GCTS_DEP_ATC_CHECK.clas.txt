@@ -64,7 +64,10 @@ CLASS zcl_gcts_dep_atc_check IMPLEMENTATION.
     super->constructor( ).
     " Register the message class this check uses
     "  (create message class ZGCTS_DEP_MSG in SE91 with messages 001–004)
-    me->description = 'gCTS Cross-Task Dependency Check'(001).
+    " NB: do NOT use the text-symbol form 'literal'(001) here - the class
+    " is shipped without text elements, so referencing text symbol 001
+    " causes activation to fail with "Text symbol 001 does not exist".
+    me->description = 'gCTS Cross-Task Dependency Check'.
   ENDMETHOD.
 
 
@@ -78,8 +81,13 @@ CLASS zcl_gcts_dep_atc_check IMPLEMENTATION.
 
     " ── Run the full analysis pipeline ───────────────────────────────────────
     TRY.
-        ZCL_GCTS_TR_ANALYZER=>GV_TR_ID = lv_tr.
-        DATA(lo_analyzer) = NEW zcl_gcts_tr_analyzer( ).
+        " Use the modern instance-based constructor instead of the deprecated
+        " static GV_TR_ID. The static is not thread-safe and an ATC run can
+        " execute multiple checks concurrently.
+        DATA lt_input TYPE zcl_gcts_tr_analyzer=>tt_input.
+        APPEND VALUE #( id = CONV trkorr( lv_tr ) ) TO lt_input.
+
+        DATA(lo_analyzer) = NEW zcl_gcts_tr_analyzer( it_input = lt_input ).
         DATA(lv_json)     = lo_analyzer->to_json( ).
 
         " Parse the JSON minimally to extract clusters
@@ -157,6 +165,28 @@ CLASS zcl_gcts_dep_atc_check IMPLEMENTATION.
 
   METHOD raise_finding.
     " Delegate to ATC framework to record the finding against the current object
+    "
+    " NB: do NOT use the (50) / +50(50) substring form directly on iv_detail.
+    " The (len) form raises CX_SY_RANGE_OUT_OF_BOUNDS when iv_detail is
+    " shorter than the offset (e.g. a 12-char detail dumps on iv_detail(50)).
+    " We compute safe slice lengths first.
+    DATA lv_total TYPE i.
+    DATA lv_v1    TYPE string.
+    DATA lv_v2    TYPE string.
+
+    lv_total = strlen( iv_detail ).
+
+    IF lv_total <= 50.
+      lv_v1 = iv_detail.
+    ELSE.
+      lv_v1 = iv_detail+0(50).
+      IF lv_total - 50 <= 50.
+        lv_v2 = iv_detail+50.
+      ELSE.
+        lv_v2 = iv_detail+50(50).
+      ENDIF.
+    ENDIF.
+
     TRY.
         DATA(ls_finding) = VALUE sci_finding(
           test       = c_check_id
@@ -164,8 +194,8 @@ CLASS zcl_gcts_dep_atc_check IMPLEMENTATION.
           priority   = iv_prio
           errmsgid   = iv_msg_id
           errmsgno   = iv_msg_no
-          errmsgv1   = iv_detail(50)
-          errmsgv2   = iv_detail+50(50) ).
+          errmsgv1   = lv_v1
+          errmsgv2   = lv_v2 ).
         append_message( ls_finding ).
     CATCH cx_root.  " ATC API may differ — best-effort
     ENDTRY.

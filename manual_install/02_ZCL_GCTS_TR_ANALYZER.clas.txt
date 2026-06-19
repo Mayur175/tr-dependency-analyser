@@ -885,18 +885,22 @@ CLASS zcl_gcts_tr_analyzer IMPLEMENTATION.
       DATA(lv_step)   = pull_step_of_task(   ls_dep-source_task ).
       DATA(lv_action) = pull_action_of_task( ls_dep-source_task ).
 
+      " NB: do NOT use the (len) substring form on `string` values here.
+      " e.g. lv_risk(10) raises CX_SY_RANGE_OUT_OF_BOUNDS when
+      " strlen( lv_risk ) < 10 (e.g. lv_risk = 'HIGH'). Assigning a string
+      " to a fixed-length CHAR column auto-truncates - no manual cut needed.
       APPEND VALUE #(
         tr_id       = mv_label
         run_ts      = lv_ts
         src_task    = ls_dep-source_task
-        src_obj     = ls_dep-source_object(60)
+        src_obj     = ls_dep-source_object
         tgt_task    = ls_dep-target_task
-        tgt_obj     = ls_dep-target_object(60)
-        kind        = ls_dep-kind(20)
-        risk        = lv_risk(10)
-        detail      = ls_dep-detail(200)
+        tgt_obj     = ls_dep-target_object
+        kind        = ls_dep-kind
+        risk        = lv_risk
+        detail      = ls_dep-detail
         pull_step   = lv_step
-        pull_action = lv_action(30) ) TO lt_rows.
+        pull_action = lv_action ) TO lt_rows.
     ENDLOOP.
 
     IF lt_rows IS NOT INITIAL.

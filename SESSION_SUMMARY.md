@@ -78,6 +78,16 @@ The next-largest open items are:
 
 ## 4. Recent activity log (newest first)
 
+- **2026-06-20** — Scaffolded the **full project-template tree** (option C
+  per user override; option B was the maintainer's recommendation). 391
+  files added across ~266 directories — most are placeholder READMEs. Root
+  files: LICENSE (Apache-2.0), CHANGELOG.md, CONTRIBUTING.md, SECURITY.md,
+  CODEOWNERS, .editorconfig, .gitattributes, .env.example, .mcp.json,
+  pyproject.toml, package.json. Named files: 3 ADRs extracted from
+  existing decisions, 15 lessons/ files, 7 context/active/ files, 12
+  command stubs, 19 agent stubs, 13 rule files, 6 output styles, 18 hook
+  shell stubs (no-op bodies). Pushed to `tr-dep` as commit `9cddab3`.
+  — done.
 - **2026-06-20** — Added `CLAUDE.md §8` (continuity-files rules) + created
   `SESSION_SUMMARY.md` and `FEEDBACK_LOG.md`. — done.
 - **2026-06-20** — Enabled GitHub Pages on
@@ -109,6 +119,15 @@ preceding session's handover note.)*
 | [CLAUDE.md](CLAUDE.md) | **created 2026-06-20** | Project operating instructions: role, anti-hallucination rules, push policy, OOP/SOLID, communication style, continuity-file rules. |
 | [SESSION_SUMMARY.md](SESSION_SUMMARY.md) | **created 2026-06-20** | This file. Cumulative project state. |
 | [FEEDBACK_LOG.md](FEEDBACK_LOG.md) | **created 2026-06-20** | Corrections-and-lessons file; rules so the same mistake does not repeat. |
+| [LICENSE](LICENSE) | **created 2026-06-20** | Apache-2.0. |
+| [CHANGELOG.md](CHANGELOG.md) | **created 2026-06-20** | Keep-a-Changelog format, v1.0.0 baseline + Unreleased section. |
+| [CONTRIBUTING.md](CONTRIBUTING.md) | **created 2026-06-20** | Build, branch, code-style, anti-hallucination contract for contributors. |
+| [SECURITY.md](SECURITY.md) | **created 2026-06-20** | Reporting channel + documented `AUTHORITY-CHECK` posture. |
+| [CODEOWNERS](CODEOWNERS) | **created 2026-06-20** | Single maintainer; sub-area placeholders commented. |
+| [docs/decisions/ADR-001.md](docs/decisions/ADR-001.md) | **created 2026-06-20** | Dual ABAP source tree decision. |
+| [docs/decisions/ADR-002.md](docs/decisions/ADR-002.md) | **created 2026-06-20** | Classic CTS / DDIC tables as universal data path. |
+| [docs/decisions/ADR-003.md](docs/decisions/ADR-003.md) | **created 2026-06-20** | `AUTHORITY-CHECK` default = FALSE for sandbox. |
+| Full template tree (~266 dirs, 391 files) | **created 2026-06-20** | Most are placeholder READMEs. See commit `9cddab3` for the exhaustive list. |
 
 The codebase itself (`abap/`, `abap_cloud/`, `eclipse/`) was not modified
 this session. The previous session's handover is captured in

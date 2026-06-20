@@ -106,6 +106,25 @@ here; once a rule is codified into `CLAUDE.md` proper, it moves to
   multi-session work. The cost of two file edits per turn is far lower
   than the cost of re-deriving the project state next session.
 
+### [2026-06-20] — Recommendation does not equal restriction
+- **What I did wrong / what was unclear:** when asked to evaluate a large
+  project-template tree, my recommendation was option B (minimal + ADRs +
+  docs reshuffle) on the grounds that option C (full template) would
+  reduce signal-to-noise. The user explicitly chose option C. I did the
+  work as asked, but it is worth recording that *recommendation is not
+  authority* — once the user has heard the trade-off, their decision is
+  final.
+- **What the user actually wanted:** the full tree, as specified, with
+  honest scaffolding (placeholder READMEs, no fabricated content).
+- **Rule going forward:** *State the recommendation once, with the trade-off,
+  then accept the user's decision without further pushback. If executing
+  the chosen option, mark the artefacts honestly (placeholders, scaffold,
+  TODO) so a future reader does not mistake them for real content.*
+- **Generalisation:** The maintainer is allowed to take on technical debt
+  intentionally (e.g. for project-management or perception reasons that
+  the assistant doesn't see). The assistant's job is to surface the cost,
+  not to override the choice.
+
 ---
 
 ## Resolved / superseded

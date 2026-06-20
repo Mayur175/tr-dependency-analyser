@@ -1,0 +1,5 @@
+{
+  "$schema": "https://raw.githubusercontent.com/anthropics/claude-code/main/schemas/mcp.schema.json",
+  "$comment": "Project-scoped MCP server registry. Most MCP servers a developer needs (playwright, drawio, jira) are registered at user level in ~/.claude/. Add an entry here only when a server is genuinely project-scoped (e.g. a local mock SAP server for testing).",
+  "mcpServers": {}
+}

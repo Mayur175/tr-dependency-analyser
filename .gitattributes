@@ -1,0 +1,33 @@
+# Auto-detect text files; force LF line-endings on commit (avoids
+# CRLF/LF churn when Windows + macOS contributors share the repo).
+* text=auto eol=lf
+
+# Explicitly mark known text formats
+*.abap        text eol=lf
+*.java        text eol=lf
+*.md          text eol=lf
+*.xml         text eol=lf
+*.json        text eol=lf
+*.yaml        text eol=lf
+*.yml         text eol=lf
+*.sh          text eol=lf
+*.py          text eol=lf
+*.html        text eol=lf
+*.css         text eol=lf
+*.properties  text eol=lf
+
+# Mark binary formats so git does not try to diff them
+*.png         binary
+*.jpg         binary
+*.jpeg        binary
+*.gif         binary
+*.ico         binary
+*.zip         binary
+*.jar         binary
+*.class       binary
+*.pdf         binary
+
+# Lockfiles — let GitHub collapse them in PR review
+package-lock.json   linguist-generated=true
+uv.lock             linguist-generated=true
+yarn.lock           linguist-generated=true

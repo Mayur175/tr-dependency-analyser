@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+# Claude Code statusline — placeholder.
+#
+# This script is invoked by Claude Code to render the statusline.
+# It receives session info on stdin (JSON) and prints a single line to stdout.
+# See https://docs.claude.com/en/docs/claude-code/statusline for the full
+# contract. Replace this with a real implementation when desired.
+
+echo "TR Dependency Analyser"

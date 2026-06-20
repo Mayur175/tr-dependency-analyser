@@ -1,0 +1,17 @@
+# CODEOWNERS — TR Dependency Analyser
+#
+# Every file in this repository is owned by the maintainer below.
+# When sub-area maintainers join, add specific paths above the
+# wildcard rule.
+#
+# See https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-security/customizing-your-repository/about-code-owners
+
+*                                @Mayur175
+
+# Sub-area placeholders (uncomment and fill when the project grows):
+# /abap/                         @Mayur175
+# /abap_cloud/                   @Mayur175
+# /eclipse/                      @Mayur175
+# /docs/architecture/            @Mayur175
+# /docs/decisions/               @Mayur175
+# /.claude/                      @Mayur175

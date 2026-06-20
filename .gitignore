@@ -20,3 +20,12 @@ __pycache__/
 
 # Playwright MCP runtime artefacts (page snapshots, console logs)
 .playwright-mcp/
+
+# Local developer overrides — never committed
+CLAUDE.local.md
+.env
+
+# Project-scoped Claude Code state that should stay personal
+.claude/settings.local.json
+.claude/temp/
+.claude/memory/

@@ -1,0 +1,28 @@
+# pyproject.toml — Python tooling root
+#
+# The TR Dependency Analyser is primarily an Eclipse plugin (Java/Tycho) +
+# ABAP backend. This file is a placeholder for the Phase 4 BTP webhook
+# service (FastAPI on Cloud Foundry / Kyma) which is *not yet implemented*.
+#
+# When Phase 4 lands, the actual service will live in its own subdirectory
+# (e.g. `services/integration/github-pr-check/`) with its own
+# `pyproject.toml` — this root file remains a thin shell.
+
+[project]
+name = "tr-dependency-analyser"
+version = "1.0.0"
+description = "TR / Task Dependency Resolver for SAP transports — root metadata. Real Python sub-packages will appear under services/ when Phase 4 ships."
+readme = "README.md"
+license = { file = "LICENSE" }
+requires-python = ">=3.11"
+authors = [
+    { name = "Mayur", email = "mayur@example.invalid" }
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.pyright]
+typeCheckingMode = "strict"
+pythonVersion = "3.11"

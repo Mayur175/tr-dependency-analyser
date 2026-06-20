@@ -1,0 +1,15 @@
+{
+  "name": "tr-dependency-analyser",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Root metadata only. The TR Dependency Analyser has no Node.js code today — the Eclipse plugin builds via Maven Tycho (eclipse/pom.xml) and the ABAP backend installs via abapGit. This file exists so JS-based tooling (markdown linters, link checkers, etc.) has somewhere to be configured if added later.",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Mayur175/tr-dependency-analyser.git"
+  },
+  "homepage": "https://mayur175.github.io/tr-dependency-analyser/",
+  "scripts": {
+    "comment": "No-op placeholders. Replace with real scripts when JS tooling is added."
+  }
+}

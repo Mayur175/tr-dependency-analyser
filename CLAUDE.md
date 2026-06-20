@@ -415,3 +415,104 @@ them so the user can correct them once and they stick:
 
 *Last updated: 2026-06-20. Edit this file directly to change scope; the
 assistant will read the new version on the next session start.*
+
+---
+
+## 8. Continuity files — `SESSION_SUMMARY.md` and `FEEDBACK_LOG.md`
+
+To avoid re-deriving context at the start of every session and to avoid
+repeating mistakes the user has already corrected, this repo maintains two
+companion files alongside `CLAUDE.md`. The assistant must read both at the
+start of every session and update both at the end.
+
+### 8.1 `SESSION_SUMMARY.md` — running cumulative summary
+
+**Purpose.** A *cumulative*, *append-mostly* picture of the project so the
+next session can pick up without re-reading the entire transcript. This is
+**not** a per-session diary that grows forever — it is a living "current
+state of play".
+
+**Required structure** (the assistant must keep these headings stable so the
+file remains diff-friendly):
+
+1. **Current state of the project** — one paragraph: what works, what is in
+   progress, what is blocked. Replaced wholesale each update.
+2. **Active decisions in force** — bullet list of architectural / process
+   decisions made and not yet superseded (e.g. *"default push remote =
+   `tr-dep`"*, *"v2 repo is a sandbox mirror, not the install URL"*).
+3. **Open questions / pending user decisions** — bullets, each tagged with
+   the date raised so stale ones are visible.
+4. **Recent activity log** — newest first, one line per session in the form
+   `YYYY-MM-DD — short description — outcome`. Keep the last ~20 entries;
+   prune older ones into a one-line aggregate at the bottom.
+5. **Files created or materially changed** — table of files with one-line
+   description, so a reader can navigate.
+
+**Update cadence.**
+
+- The assistant updates `SESSION_SUMMARY.md` **at the end of every
+  meaningful turn** (i.e. when work has actually shifted state — code
+  changed, repo changed, decision made, file created).
+- *Do not* update for trivial chatter, "hi" / "thanks" turns, or
+  questions that did not change state.
+- Each update **replaces** sections 1–3 wholesale and **appends** to
+  sections 4–5.
+
+**Authority.** If `SESSION_SUMMARY.md` and the codebase ever disagree, the
+codebase wins — the file is a *navigational aid*, not a source of truth.
+But disagreement is itself a signal: surface it to the user.
+
+### 8.2 `FEEDBACK_LOG.md` — corrections-and-lessons file
+
+**Purpose.** Capture every correction, push-back, "no that's wrong", or
+preference the user states, so that the same mistake does not repeat.
+Distinct from `SESSION_SUMMARY.md` (which is *what* is happening);
+`FEEDBACK_LOG.md` is *how to behave* differently going forward.
+
+**Required structure.** Each entry is a small block of the following form:
+
+```markdown
+## [YYYY-MM-DD] — Short title of the correction
+- **What I did wrong / what was unclear:** one or two lines.
+- **What the user actually wanted:** one or two lines.
+- **Rule going forward:** the imperative, e.g. *"Never auto-push to a remote
+  not yet confirmed as the active default."*
+- **Generalisation:** the broader lesson behind the rule, so it transfers to
+  similar future situations.
+```
+
+**Sections.** The file is divided into:
+
+1. **Active rules** — entries the assistant must apply on every relevant
+   turn. New corrections land here.
+2. **Resolved / superseded** — entries that have been merged into
+   `CLAUDE.md` proper, or that no longer apply. Move them here rather than
+   delete them, so the history of corrections is preserved.
+
+**Update cadence.**
+
+- The assistant adds an entry **the same turn the correction is received**,
+  not at session end.
+- When an "Active rule" stabilises and is now part of the standing
+  `CLAUDE.md` policy, the assistant moves it to "Resolved / superseded"
+  and adds a back-reference (e.g. *"now codified in §4.0 of CLAUDE.md"*).
+
+**Behavioural contract.** At the start of every session, after reading
+`CLAUDE.md`, the assistant must read the **Active rules** section of
+`FEEDBACK_LOG.md` and treat each entry as if it were appended to
+`CLAUDE.md`. Repeating a mistake already logged here is the worst-case
+failure mode — flag it explicitly to the user if it happens.
+
+### 8.3 Where these files live and how they get pushed
+
+- Both files live at the repo root, alongside `CLAUDE.md`.
+- They are committed and pushed under the **same standing authorization**
+  as routine doc changes (§3.1). Commit messages should be of the form:
+  - `SESSION_SUMMARY.md: <one-line state delta>`
+  - `FEEDBACK_LOG.md: log <one-line correction title>`
+- Neither file is auto-published anywhere — they are repo-internal notes
+  for the assistant + maintainer, not user documentation.
+
+---
+
+*This section was added 2026-06-20.*

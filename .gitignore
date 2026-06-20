@@ -17,3 +17,6 @@ eclipse/com.gmw.gcts.analyzer.updatesite/target/
 # Python bytecode
 __pycache__/
 *.pyc
+
+# Playwright MCP runtime artefacts (page snapshots, console logs)
+.playwright-mcp/

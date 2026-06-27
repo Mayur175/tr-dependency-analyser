@@ -276,8 +276,13 @@ CLASS zcl_gcts_tr_analyzer_cloud IMPLEMENTATION.
 
   METHOD to_json.
 
-    " Hand-rolled JSON. Produces:
-    "   {"label":"...","objectCount":N,"depCount":M,"deps":[ ... ]}
+    " Hand-rolled JSON. Field names match the Eclipse plugin's AnalysisResult
+    " parser exactly (tr, taskCount, objectCount, edgeCount, clusters, pullOrder).
+    " The cloud MVP does not yet compute cross-task clusters, so clusters[] and
+    " pullOrder[] are emitted as empty arrays — the plugin renders the header
+    " correctly and shows an empty dependency tree rather than all-zero/null.
+    " The legacy "label", "depCount", and "deps" fields are kept alongside so
+    " that any consumer that already reads the old shape keeps working.
     DATA lv_deps      TYPE string.
     DATA lv_first     TYPE abap_bool.
     DATA lv_obj_count TYPE i.
@@ -307,10 +312,15 @@ CLASS zcl_gcts_tr_analyzer_cloud IMPLEMENTATION.
         && `,"risk":"`         && json_escape( ls-risk )          && `"}`.
     ENDLOOP.
 
-    rv_json = `{"label":"`      && json_escape( mv_label ) && `"`
-           && `,"objectCount":` && lv_obj_str
-           && `,"depCount":`    && lv_dep_str
-           && `,"deps":[`       && lv_deps && `]`
+    rv_json = `{"tr":"`          && json_escape( mv_label ) && `"`
+           && `,"taskCount":`    && lv_obj_str
+           && `,"objectCount":`  && lv_obj_str
+           && `,"edgeCount":`    && lv_dep_str
+           && `,"clusters":[]`
+           && `,"pullOrder":[]`
+           && `,"label":"`       && json_escape( mv_label ) && `"`
+           && `,"depCount":`     && lv_dep_str
+           && `,"deps":[`        && lv_deps && `]`
            && `}`.
 
   ENDMETHOD.

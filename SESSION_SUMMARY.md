@@ -15,15 +15,21 @@ Eclipse plugin installs from a public GitHub Pages P2 site and produces a
 clusters + pull-order view. The architecture is documented in depth across
 six markdown files at the repo root.
 
-**2026-06-27 status (Public Cloud path):** The user has the plugin installed
-and connected to BTP tenant `my4101910.lab.s4hana.cloud.sap`. Three issues
-identified and resolved today:
-1. HTTP 401 — wrong host URL had `-api` in it. Fixed in Eclipse preferences.
+**2026-06-27/28 status (Public Cloud path) — RESUME POINT:**
+User has plugin installed, connected to BTP tenant `my4101910.lab.s4hana.cloud.sap`.
+Three issues found and fixed:
+1. HTTP 401 — wrong host URL had `-api`. Fixed in Eclipse preferences.
 2. `TR: null / 0 / 0` — `to_json()` field name mismatch. Fixed in commit `017e0a6`.
-3. SAML redirect — tenant uses IAS/SAML by default; Basic Auth is intercepted
-   and redirected to HTML login page before ABAP handler runs. Fix: add
-   `&saml2=disabled` to the Service path in Eclipse Preferences. User applying
-   this fix. Once done, Test Connection should turn green and analysis should work.
+3. SAML redirect — `&saml2=disabled` added to Service path. Now getting a real
+   HTTP 401 (Basic Auth reaching dispatcher, SAML bypassed — good progress).
+
+**Next action when user returns:**
+- Re-enter password in Eclipse Preferences → TR Analyser (Secure Storage may
+  have cached old password after password change). Triple-click password field,
+  delete, retype new password, Apply and Close → Test Connection.
+- If still 401 after re-entering password: assign Business Catalog (search
+  `ZGCTS` in Maintain Business Roles → add to role for CB9980000038).
+- If 403: catalog assigned but scope missing — different fix.
 
 The project sits roughly between **Phase 1 and Phase 2** of the 10-phase
 roadmap in [SOLUTION_ARCHITECTURE.md](SOLUTION_ARCHITECTURE.md): the
@@ -88,7 +94,7 @@ The next-largest open items are:
 
 ## 4. Recent activity log (newest first)
 
-- **2026-06-27** — Diagnosed SAML redirect blocking all calls to BTP handler. Tenant uses IAS; Basic Auth requests get HTML SAML redirect instead of reaching ABAP. Fix: `&saml2=disabled` appended to Service path in Eclipse Preferences. Also diagnosed: HTTP 401 from wrong `-api` host, `TR: null` from `to_json()` field mismatch (fixed in `017e0a6`).
+- **2026-06-27** — Full Public Cloud debug session. Fixed: (1) `-api` host in Eclipse URL, (2) `to_json()` field mismatch (`017e0a6`), (3) SAML redirect bypassed with `&saml2=disabled`. Ended with real HTTP 401 — Secure Storage password stale after password change. Resume: retype password in Preferences → Test Connection → if still 401, assign ZGCTS Business Catalog to CB9980000038 role.
 - **2026-06-27** — Fixed `to_json()` field name mismatch in cloud analyser. Java parser reads `"tr"/"taskCount"/"objectCount"/"edgeCount"/"clusters"/"pullOrder"`; ABAP was emitting `"label"/"depCount"/"deps"`. Caused null/0/0 header and empty tree. Fixed + pushed `017e0a6` to `tr-dep`. Also diagnosed HTTP 401 root cause: Eclipse System URL had `-api` in the hostname; corrected to `my4101910.lab.s4hana.cloud.sap:443`.
 - **2026-06-20** — Scaffolded the **full project-template tree** (option C
   per user override; option B was the maintainer's recommendation). 391

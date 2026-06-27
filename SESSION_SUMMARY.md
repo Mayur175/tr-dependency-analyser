@@ -15,6 +15,16 @@ Eclipse plugin installs from a public GitHub Pages P2 site and produces a
 clusters + pull-order view. The architecture is documented in depth across
 six markdown files at the repo root.
 
+**2026-06-27 status (Public Cloud path):** The user has the plugin installed
+and connected to BTP tenant `my4101910.lab.s4hana.cloud.sap`. The HTTP 401
+was caused by the `-api` host in Eclipse preferences (now fixed). A second
+bug was found and fixed: the cloud `to_json()` emitted `"label"`/`"depCount"`/
+`"deps"` but the Java parser reads `"tr"`/`"taskCount"`/`"objectCount"`/
+`"edgeCount"`/`"clusters"`/`"pullOrder"` — causing null/0/0 header and empty
+tree. Fixed in commit `017e0a6`, pushed to `tr-dep`. The binding publish /
+Business Catalog assignment on the BTP side is still pending (user working
+through it).
+
 The project sits roughly between **Phase 1 and Phase 2** of the 10-phase
 roadmap in [SOLUTION_ARCHITECTURE.md](SOLUTION_ARCHITECTURE.md): the
 analytical core is done, multi-TR input is done, the Eclipse plugin and ICF
@@ -78,6 +88,7 @@ The next-largest open items are:
 
 ## 4. Recent activity log (newest first)
 
+- **2026-06-27** — Fixed `to_json()` field name mismatch in cloud analyser. Java parser reads `"tr"/"taskCount"/"objectCount"/"edgeCount"/"clusters"/"pullOrder"`; ABAP was emitting `"label"/"depCount"/"deps"`. Caused null/0/0 header and empty tree. Fixed + pushed `017e0a6` to `tr-dep`. Also diagnosed HTTP 401 root cause: Eclipse System URL had `-api` in the hostname; corrected to `my4101910.lab.s4hana.cloud.sap:443`.
 - **2026-06-20** — Scaffolded the **full project-template tree** (option C
   per user override; option B was the maintainer's recommendation). 391
   files added across ~266 directories — most are placeholder READMEs. Root
@@ -116,6 +127,7 @@ preceding session's handover note.)*
 
 | File | Status | One-line description |
 |---|---|---|
+| [abap_cloud/src/zcl_gcts_tr_analyzer_cloud.clas.abap](abap_cloud/src/zcl_gcts_tr_analyzer_cloud.clas.abap) | **fixed 2026-06-27** | `to_json()` now emits field names matching the Java parser (`tr`, `taskCount`, `objectCount`, `edgeCount`, `clusters[]`, `pullOrder[]`). Legacy fields kept for backwards compat. |
 | [CLAUDE.md](CLAUDE.md) | **created 2026-06-20** | Project operating instructions: role, anti-hallucination rules, push policy, OOP/SOLID, communication style, continuity-file rules. |
 | [SESSION_SUMMARY.md](SESSION_SUMMARY.md) | **created 2026-06-20** | This file. Cumulative project state. |
 | [FEEDBACK_LOG.md](FEEDBACK_LOG.md) | **created 2026-06-20** | Corrections-and-lessons file; rules so the same mistake does not repeat. |

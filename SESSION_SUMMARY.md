@@ -16,14 +16,14 @@ clusters + pull-order view. The architecture is documented in depth across
 six markdown files at the repo root.
 
 **2026-06-27 status (Public Cloud path):** The user has the plugin installed
-and connected to BTP tenant `my4101910.lab.s4hana.cloud.sap`. The HTTP 401
-was caused by the `-api` host in Eclipse preferences (now fixed). A second
-bug was found and fixed: the cloud `to_json()` emitted `"label"`/`"depCount"`/
-`"deps"` but the Java parser reads `"tr"`/`"taskCount"`/`"objectCount"`/
-`"edgeCount"`/`"clusters"`/`"pullOrder"` — causing null/0/0 header and empty
-tree. Fixed in commit `017e0a6`, pushed to `tr-dep`. The binding publish /
-Business Catalog assignment on the BTP side is still pending (user working
-through it).
+and connected to BTP tenant `my4101910.lab.s4hana.cloud.sap`. Three issues
+identified and resolved today:
+1. HTTP 401 — wrong host URL had `-api` in it. Fixed in Eclipse preferences.
+2. `TR: null / 0 / 0` — `to_json()` field name mismatch. Fixed in commit `017e0a6`.
+3. SAML redirect — tenant uses IAS/SAML by default; Basic Auth is intercepted
+   and redirected to HTML login page before ABAP handler runs. Fix: add
+   `&saml2=disabled` to the Service path in Eclipse Preferences. User applying
+   this fix. Once done, Test Connection should turn green and analysis should work.
 
 The project sits roughly between **Phase 1 and Phase 2** of the 10-phase
 roadmap in [SOLUTION_ARCHITECTURE.md](SOLUTION_ARCHITECTURE.md): the
@@ -88,6 +88,7 @@ The next-largest open items are:
 
 ## 4. Recent activity log (newest first)
 
+- **2026-06-27** — Diagnosed SAML redirect blocking all calls to BTP handler. Tenant uses IAS; Basic Auth requests get HTML SAML redirect instead of reaching ABAP. Fix: `&saml2=disabled` appended to Service path in Eclipse Preferences. Also diagnosed: HTTP 401 from wrong `-api` host, `TR: null` from `to_json()` field mismatch (fixed in `017e0a6`).
 - **2026-06-27** — Fixed `to_json()` field name mismatch in cloud analyser. Java parser reads `"tr"/"taskCount"/"objectCount"/"edgeCount"/"clusters"/"pullOrder"`; ABAP was emitting `"label"/"depCount"/"deps"`. Caused null/0/0 header and empty tree. Fixed + pushed `017e0a6` to `tr-dep`. Also diagnosed HTTP 401 root cause: Eclipse System URL had `-api` in the hostname; corrected to `my4101910.lab.s4hana.cloud.sap:443`.
 - **2026-06-20** — Scaffolded the **full project-template tree** (option C
   per user override; option B was the maintainer's recommendation). 391
